@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FileText, Download, ExternalLink, Eye, GitBranch, GitCommit, ChevronDown, ChevronUp, Code2, Film } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
+import { juryDeliverablesProjectsDemo } from "../../data/demoData";
 
 type Project = {
   id: number;
@@ -19,8 +20,7 @@ const fileTypeConfig: Record<string, { icon: React.ElementType; color: string; b
   mp4: { icon: Film, color: "#8b5cf6", bg: "rgba(139,92,246,0.1)" },
 };
 
-// Empty — to be populated from API
-const projects: Project[] = [];
+const projects: Project[] = juryDeliverablesProjectsDemo as Project[];
 
 export function JuryDeliverables() {
   const [expanded, setExpanded] = useState<number | null>(null);

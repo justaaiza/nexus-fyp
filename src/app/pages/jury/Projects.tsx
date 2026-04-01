@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { FolderOpen, ChevronRight, Users, Calendar, ExternalLink, CheckCircle2, Clock } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
+import { juryAssignedProjectsDemo, juryPanelInfoDemo } from "../../data/demoData";
 
 type AssignedProject = {
   id: number;
@@ -19,8 +20,8 @@ type AssignedProject = {
   deliverables: { name: string; type: string; submitted: boolean }[];
 };
 
-// Empty — to be populated from API
-const assignedProjects: AssignedProject[] = [];
+const assignedProjects: AssignedProject[] = juryAssignedProjectsDemo as AssignedProject[];
+const juryPanel = juryPanelInfoDemo;
 
 export function JuryProjects() {
   const navigate = useNavigate();
@@ -38,11 +39,11 @@ export function JuryProjects() {
           <Users size={18} className="text-fyp-purple" />
         </div>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-fyp-text">Your Jury Panel</p>
+          <p className="text-sm font-semibold text-fyp-text">Your Jury Panel · {juryPanel.name}</p>
           <div className="flex items-center gap-4 mt-1">
             <div className="flex items-center gap-1.5">
               <Calendar size={12} className="text-fyp-text-muted" />
-              <span className="text-xs text-fyp-text-muted">Schedule pending</span>
+              <span className="text-xs text-fyp-text-muted">{juryPanel.slot}</span>
             </div>
           </div>
         </div>

@@ -32,11 +32,11 @@ export const router = createBrowserRouter([
       { path: "supervisor/requests", Component: SupervisorRequests },
       { path: "supervisor/milestones", Component: SupervisorMilestones },
       { path: "supervisor/evaluation", Component: SupervisorEvaluation },
-      // Admin
+      // // Admin
       { path: "admin/panels", Component: AdminPanels },
       { path: "admin/users", Component: AdminUsers },
       { path: "admin/announcements", Component: AdminAnnouncements },
-      // Jury
+      // // Jury
       { path: "jury/projects", Component: JuryProjects },
       { path: "jury/deliverables", Component: JuryDeliverables },
       { path: "jury/scores", Component: JuryScores },

@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, Clock, Users, ChevronRight, Mail } from "lucide-
 import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
 import { EmptyState } from "../../components/EmptyState";
+import { supervisorRequestsDemo } from "../../data/demoData";
 
 type RequestStatus = "pending" | "accepted" | "rejected";
 
@@ -26,8 +27,7 @@ const statusCfg: Record<RequestStatus, { label: string; color: string; bg: strin
   rejected: { label: "Rejected", color: "#ef4444", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.25)" },
 };
 
-// Empty by default — to be populated from API
-const initialRequests: Request[] = [];
+const initialRequests: Request[] = supervisorRequestsDemo as Request[];
 
 export function SupervisorRequests() {
   const [filter, setFilter] = useState("all");
