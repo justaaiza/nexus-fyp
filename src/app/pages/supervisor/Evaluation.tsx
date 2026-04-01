@@ -3,6 +3,7 @@ import { ClipboardCheck, FileText, Download, Star, Send, ChevronDown, ChevronUp 
 import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
 import { EmptyState } from "../../components/EmptyState";
+import { supervisorEvaluationSubmissionsDemo } from "../../data/demoData";
 
 const rubricCriteria = [
   { key: "completeness", label: "Completeness", max: 25 },
@@ -26,8 +27,7 @@ type Submission = {
   existingFeedback: string;
 };
 
-// Empty — to be populated from API
-const submissions: Submission[] = [];
+const submissions: Submission[] = supervisorEvaluationSubmissionsDemo as Submission[];
 
 export function SupervisorEvaluation() {
   const [expanded, setExpanded] = useState<number | null>(null);

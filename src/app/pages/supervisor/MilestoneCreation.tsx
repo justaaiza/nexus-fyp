@@ -4,6 +4,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
 import { Modal } from "../../components/Modal";
 import { EmptyState } from "../../components/EmptyState";
+import { supervisorGroupsDemo, supervisorMilestonesDemo } from "../../data/demoData";
 
 type MilestoneType = "Document" | "Defense" | "Code";
 type MilestoneStatus = "past" | "active" | "upcoming";
@@ -31,9 +32,8 @@ const statusCfg: Record<MilestoneStatus, { label: string; color: string; bg: str
   upcoming: { label: "Upcoming", color: "#3b7fe8", bg: "rgba(59,127,232,0.1)" },
 };
 
-// Empty — to be populated from API
-const initialMilestones: Milestone[] = [];
-const groups: string[] = [];
+const groups: string[] = supervisorGroupsDemo;
+const initialMilestones: Milestone[] = supervisorMilestonesDemo as Milestone[];
 
 export function SupervisorMilestones() {
   const [milestones, setMilestones] = useState(initialMilestones);

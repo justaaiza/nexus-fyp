@@ -2,6 +2,12 @@ import { useState } from "react";
 import { Star, Send, CheckCircle2, Info } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
+import {
+  juryGroupsDemo,
+  juryInitialFeedbacksDemo,
+  juryInitialScoresDemo,
+  juryInitialSubmittedIdsDemo,
+} from "../../data/demoData";
 
 const rubric = [
   { key: "problem", label: "Problem Understanding & Motivation", max: 15, desc: "Does the team clearly understand the problem they are solving?" },
@@ -19,8 +25,10 @@ type Group = {
   members: { name: string; roll: string }[];
 };
 
-// Empty — to be populated from API
-const groups: Group[] = [];
+const groups: Group[] = juryGroupsDemo as Group[];
+const initialScores: Record<number, Record<string, number>> = juryInitialScoresDemo;
+const initialFeedbacks: Record<number, string> = juryInitialFeedbacksDemo;
+const initialSubmittedIds = juryInitialSubmittedIdsDemo;
 
 const getLetterGrade = (pct: number) => {
   if (pct >= 90) return { grade: "A+", color: "#10b981" };
@@ -35,9 +43,9 @@ const getLetterGrade = (pct: number) => {
 
 export function JuryScores() {
   const [selectedGroup, setSelectedGroup] = useState(groups.length > 0 ? groups[0].id : 0);
-  const [scores, setScores] = useState<Record<number, Record<string, number>>>({});
-  const [feedbacks, setFeedbacks] = useState<Record<number, string>>({});
-  const [submitted, setSubmitted] = useState<Set<number>>(new Set());
+  const [scores, setScores] = useState<Record<number, Record<string, number>>>(initialScores);
+  const [feedbacks, setFeedbacks] = useState<Record<number, string>>(initialFeedbacks);
+  const [submitted, setSubmitted] = useState<Set<number>>(new Set(initialSubmittedIds));
   const [tooltip, setTooltip] = useState<string | null>(null);
 
   const group = groups.find((g) => g.id === selectedGroup);
