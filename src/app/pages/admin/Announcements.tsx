@@ -70,7 +70,7 @@ export function AdminAnnouncements() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {(["all", "students", "supervisors", "jury"] as Audience[]).map((a) => {
           const cfg = audienceConfig[a];
           const Icon = cfg.icon;
@@ -160,7 +160,7 @@ export function AdminAnnouncements() {
             <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Message *</label>
             <textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder="Write the full announcement here..." rows={4} className="w-full px-4 py-3 rounded-xl outline-none resize-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Audience</label>
               <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value as Audience })} className="w-full px-4 py-3 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]">

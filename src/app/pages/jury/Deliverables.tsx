@@ -72,9 +72,9 @@ export function JuryDeliverables() {
 
               {isOpen && (
                 <div className="border-t border-fyp-border">
-                  <div className="flex gap-0 border-b border-fyp-border">
+                  <div className="flex overflow-x-auto gap-0 border-b border-fyp-border">
                     {(["docs", "github"] as const).map((t) => (
-                      <button key={t} onClick={() => setTab(proj.id, t)} className="px-5 py-3 text-sm transition-all" style={{
+                      <button key={t} onClick={() => setTab(proj.id, t)} className="whitespace-nowrap px-5 py-3 text-sm transition-all" style={{
                         color: tab === t ? "var(--fyp-text-primary)" : "var(--fyp-text-muted)",
                         borderBottom: tab === t ? "2px solid #8b5cf6" : "2px solid transparent",
                         fontWeight: tab === t ? 500 : 400,
@@ -91,24 +91,26 @@ export function JuryDeliverables() {
                           const fc = fileTypeConfig[doc.type] || fileTypeConfig.pdf;
                           const FIcon = fc.icon;
                           return (
-                            <div key={doc.name} className="flex items-center gap-4 p-4 rounded-xl bg-fyp-elevated border border-fyp-border">
-                              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: fc.bg }}>
-                                <FIcon size={17} color={fc.color} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-medium text-fyp-text">{doc.name}</p>
-                                <div className="flex items-center gap-3 mt-0.5">
-                                  <span className="text-xs text-fyp-text-muted">{doc.size}</span>
-                                  <span className="text-xs text-fyp-text-muted">·</span>
-                                  <span className="text-xs text-fyp-text-muted">Submitted {doc.submitted}</span>
-                                  <span className="px-1.5 py-0.5 rounded bg-fyp-card text-fyp-text-secondary text-[10px]">{doc.milestone}</span>
+                            <div key={doc.name} className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 p-4 rounded-xl bg-fyp-elevated border border-fyp-border">
+                              <div className="flex items-center gap-4 w-full xl:w-auto flex-1 min-w-0">
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: fc.bg }}>
+                                  <FIcon size={17} color={fc.color} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[13px] font-medium text-fyp-text truncate">{doc.name}</p>
+                                  <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1">
+                                    <span className="text-xs text-fyp-text-muted whitespace-nowrap">{doc.size}</span>
+                                    <span className="text-xs text-fyp-text-muted hidden sm:inline">·</span>
+                                    <span className="text-xs text-fyp-text-muted whitespace-nowrap">Submitted {doc.submitted}</span>
+                                    <span className="px-1.5 py-0.5 rounded bg-fyp-card text-fyp-text-secondary text-[10px] whitespace-nowrap">{doc.milestone}</span>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex gap-2">
-                                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-fyp-card text-fyp-text-secondary border border-fyp-border">
+                              <div className="flex gap-2 w-full xl:w-auto sm:mt-0">
+                                <button className="flex-1 xl:flex-none justify-center flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-fyp-card text-fyp-text-secondary border border-fyp-border">
                                   <Eye size={12} /> View
                                 </button>
-                                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-fyp-purple/10 text-fyp-purple border border-fyp-purple/20">
+                                <button className="flex-1 xl:flex-none justify-center flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-fyp-purple/10 text-fyp-purple border border-fyp-purple/20">
                                   <Download size={12} /> Download
                                 </button>
                               </div>
@@ -118,7 +120,7 @@ export function JuryDeliverables() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-fyp-elevated">
+                        <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-fyp-elevated">
                           <GitBranch size={15} className="text-fyp-purple" />
                           <span className="text-[13px] text-fyp-text-secondary">Repository:</span>
                           <a href={proj.githubUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-sm hover:underline text-fyp-blue">
@@ -138,13 +140,13 @@ export function JuryDeliverables() {
                               const pct = Math.round((c.commits / proj.commits) * 100);
                               return (
                                 <div key={c.name} className="p-4 rounded-xl bg-fyp-elevated">
-                                  <div className="flex items-center gap-3 mb-3">
+                                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 mb-3">
                                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-fyp-blue/20 text-fyp-blue text-[11px] font-bold">{c.avatar}</div>
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-[150px]">
                                       <p className="text-[13px] font-medium text-fyp-text">{c.name}</p>
                                       <p className="text-[11px] text-fyp-text-muted">{c.commits} commits · {pct}% contribution</p>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="w-full sm:w-auto text-left sm:text-right mt-2 sm:mt-0">
                                       <p className="text-[11px] text-fyp-green">+{c.additions.toLocaleString()}</p>
                                       <p className="text-[11px] text-fyp-red">-{c.deletions.toLocaleString()}</p>
                                     </div>

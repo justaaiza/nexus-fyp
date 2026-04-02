@@ -72,7 +72,7 @@ export function SupervisorRequests() {
       />
 
       {/* Summary Row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <StatCardSimple label="Pending" value={localReqs.filter((r) => r.status === "pending").length} color="#f59e0b" />
         <StatCardSimple label="Accepted Groups" value={localReqs.filter((r) => r.status === "accepted").length} color="#10b981" />
         <StatCardSimple label="Rejected" value={localReqs.filter((r) => r.status === "rejected").length} color="#ef4444" />

@@ -107,9 +107,10 @@ export function AdminUsers() {
           description="User registration requests will appear here for approval."
         />
       ) : (
-        <div className="rounded-2xl overflow-hidden bg-fyp-card border border-fyp-border">
-          <div className="grid grid-cols-12 px-5 py-3 border-b border-fyp-border bg-fyp-sidebar">
-            {["User", "Role", "Dept", "Reg #", "Requested", "Status", "Actions"].map((h, i) => (
+        <div className="rounded-2xl overflow-x-auto bg-fyp-card border border-fyp-border">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-12 px-5 py-3 border-b border-fyp-border bg-fyp-sidebar">
+              {["User", "Role", "Dept", "Reg #", "Requested", "Status", "Actions"].map((h, i) => (
               <div key={h} className="text-[11px] text-fyp-text-muted uppercase tracking-wider" style={{
                 gridColumn: i === 0 ? "span 3" : i === 6 ? "span 2" : "span 1",
               }}>
@@ -167,6 +168,7 @@ export function AdminUsers() {
               <p className="text-sm text-fyp-text-muted">No users found matching your filters.</p>
             </div>
           )}
+          </div>
         </div>
       )}
     </div>

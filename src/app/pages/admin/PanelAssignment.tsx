@@ -57,7 +57,7 @@ export function AdminPanels() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCardSimple label="Total Panels" value={panels.length} color="#f59e0b" />
         <StatCardSimple label="Groups Assigned" value={assignedGroups.length} color="#10b981" />
         <StatCardSimple label="Unassigned Groups" value={allGroups.length - assignedGroups.length} color="#ef4444" />
@@ -189,7 +189,7 @@ export function AdminPanels() {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Defense Slot</label>
               <select value={newPanel.slot} onChange={(e) => setNewPanel({ ...newPanel, slot: e.target.value })} className="w-full px-3 py-2.5 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-xs">

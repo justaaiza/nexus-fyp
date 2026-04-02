@@ -93,7 +93,7 @@ export function SupervisorMilestones() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <StatCardSimple label="Total Milestones" value={milestones.length} color="#3b7fe8" />
         <StatCardSimple label="Active Now" value={milestones.filter((m) => m.status === "active").length} color="#f59e0b" />
         <StatCardSimple label="Groups Supervised" value={groups.length} color="#10b981" />
@@ -183,7 +183,7 @@ export function SupervisorMilestones() {
             <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Description</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Describe what students need to submit..." rows={3} className="w-full px-4 py-3 rounded-xl outline-none resize-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Deadline *</label>
               <input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} className="w-full px-4 py-3 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]" />

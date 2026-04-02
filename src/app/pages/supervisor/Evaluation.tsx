@@ -59,7 +59,7 @@ export function SupervisorEvaluation() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <StatCardSimple label="Pending Review" value={submissions.filter((s) => s.status === "pending" && !submitted.has(s.id)).length} color="#f59e0b" />
         <StatCardSimple label="Graded" value={submissions.filter((s) => s.status === "graded").length + submitted.size} color="#10b981" />
         <StatCardSimple label="Total Submissions" value={submissions.length} color="#3b7fe8" />
