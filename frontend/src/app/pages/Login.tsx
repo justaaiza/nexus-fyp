@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { GraduationCap, Eye, EyeOff, BookOpen, Shield, Users, ChevronRight, RefreshCw } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -174,6 +174,15 @@ export function LoginPage() {
               )}
             </button>
           </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-[13px] text-fyp-text-secondary">
+              Don't have an account?{" "}
+              <Link to="/signup" className="text-fyp-blue font-medium hover:underline">
+                Sign Up
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

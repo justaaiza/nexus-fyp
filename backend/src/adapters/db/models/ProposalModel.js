@@ -22,6 +22,11 @@ const proposalSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    assignedSupervisor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -36,8 +41,25 @@ const proposalSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    domain: {
+      type: String,
+      default: null,
+    },
+    techStack: {
+      type: [String],
+      default: [],
+    },
+    groupNo: {
+      type: String,
+      default: null,
+    },
+    repoUrl: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model('Proposal', proposalSchema);
+

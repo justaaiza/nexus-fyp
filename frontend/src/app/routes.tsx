@@ -16,12 +16,28 @@ import { JuryScores } from "./pages/jury/Scores";
 import { SignupPage } from "./pages/Signup";
 import { useAuth } from "./context/AuthContext";
 
+const ROLE_BASE: Record<string, string> = {
+  student: 'student',
+  supervisor: 'supervisor',
+  admin: 'admin',
+  jury: 'jury',
+};
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const location = useLocation();
 
-  if (!token) {
+  if (!token || !user) {
     return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  // Enforce role-based access: extract section from path (e.g. /app/admin/users → "admin")
+  const pathSection = location.pathname.split('/')[2]; // e.g. "student", "admin", "jury", "supervisor"
+  const roleBase = ROLE_BASE[user.role];
+
+  if (pathSection && roleBase && pathSection !== roleBase) {
+    // Redirect to the user's correct dashboard home
+    return <Navigate to={`/app/${roleBase}/dashboard`} replace />;
   }
 
   return <>{children}</>;

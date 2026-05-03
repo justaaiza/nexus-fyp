@@ -157,7 +157,7 @@ export function AdminPanels() {
                 {panel.defenseDate && (
                   <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-fyp-elevated">
                     <Calendar size={13} className="text-fyp-amber" />
-                    <span className="text-[13px] text-fyp-text-secondary">{panel.defenseDate}</span>
+                    <span className="text-[13px] text-fyp-text-secondary">{new Date(panel.defenseDate).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   </div>
                 )}
 
@@ -249,8 +249,7 @@ export function AdminPanels() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Defense Date/Slot</label>
-              <input value={newPanel.defenseDate} onChange={(e) => setNewPanel({ ...newPanel, defenseDate: e.target.value })}
-                placeholder="e.g. Mon, 27 Apr · 09:00-10:00"
+              <input type="datetime-local" value={newPanel.defenseDate} onChange={(e) => setNewPanel({ ...newPanel, defenseDate: e.target.value })}
                 className="w-full px-3 py-2.5 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-xs" />
             </div>
             <div>

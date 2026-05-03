@@ -1,21 +1,28 @@
-const UserModel = require('../../adapters/db/models/UserModel');
-const ProposalModel = require('../../adapters/db/models/ProposalModel');
-const PanelModel = require('../../adapters/db/models/PanelModel');
+const MongoUserRepository = require('../../adapters/db/repositories/MongoUserRepository');
+const MongoProposalRepository = require('../../adapters/db/repositories/MongoProposalRepository');
+const MongoPanelRepository = require('../../adapters/db/repositories/MongoPanelRepository');
 
-// ─── Dashboard Stats ──────────────────────────────────────────────────────────
+const userRepo = new MongoUserRepository();
+const proposalRepo = new MongoProposalRepository();
+const panelRepo = new MongoPanelRepository();
+
+/**
+ * Use case: Gather aggregate stats for the admin dashboard.
+ * Uses repository interfaces instead of direct model access.
+ */
 const getDashboardStats = async () => {
-  const [totalStudents, pendingApprovals, activeProposals, totalPanels] = await Promise.all([
-    UserModel.countDocuments({ role: 'student' }),
-    UserModel.countDocuments({ isApproved: false, role: { $ne: 'admin' } }),
-    ProposalModel.countDocuments({ status: 'approved' }),
-    PanelModel.countDocuments({}),
+  const [totalStudents, pendingApprovals, activeProposals, panels] = await Promise.all([
+    userRepo.countByFilter({ role: 'student' }),
+    userRepo.countByFilter({ isApproved: false, role: { $ne: 'admin' } }),
+    proposalRepo.countByFilter({ status: 'approved' }),
+    panelRepo.findAll(),
   ]);
 
   return {
     totalStudents,
     pendingApprovals,
     activeProposals,
-    upcomingDefenses: totalPanels,
+    upcomingDefenses: panels.length,
   };
 };
 

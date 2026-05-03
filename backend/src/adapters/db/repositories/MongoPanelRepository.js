@@ -60,6 +60,10 @@ class MongoPanelRepository extends IPanelRepository {
   async deleteById(id) {
     return PanelModel.findByIdAndDelete(id).lean();
   }
+
+  async countByFilter(filter = {}) {
+    return PanelModel.countDocuments(filter);
+  }
 }
 
 module.exports = MongoPanelRepository;

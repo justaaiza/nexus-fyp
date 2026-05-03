@@ -1,13 +1,8 @@
-import { useState } from "react";
-import { Star, Send, CheckCircle2, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Star, Send, CheckCircle2, Info, RefreshCw } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
-import {
-  juryGroupsDemo,
-  juryInitialFeedbacksDemo,
-  juryInitialScoresDemo,
-  juryInitialSubmittedIdsDemo,
-} from "../../data/demoData";
+import { juryAPI } from "../../services/api";
 
 const rubric = [
   { key: "problem", label: "Problem Understanding & Motivation", max: 15, desc: "Does the team clearly understand the problem they are solving?" },
@@ -18,17 +13,22 @@ const rubric = [
   { key: "qa", label: "Q&A Response", max: 10, desc: "Ability to answer technical questions from the jury." },
 ];
 
+const maxTotal = rubric.reduce((sum, r) => sum + r.max, 0);
+
+type Submission = { _id: string; fileName: string; fileType: string };
+
 type Group = {
-  id: number;
-  groupNo: string;
+  _id: string;
+  groupNo?: string;
   title: string;
-  members: { name: string; roll: string }[];
+  teamMembers?: { name: string; rollNumber?: string }[];
+  submissions?: Submission[];
 };
 
-const groups: Group[] = juryGroupsDemo as Group[];
-const initialScores: Record<number, Record<string, number>> = juryInitialScoresDemo;
-const initialFeedbacks: Record<number, string> = juryInitialFeedbacksDemo;
-const initialSubmittedIds = juryInitialSubmittedIdsDemo;
+type PanelData = {
+  _id: string;
+  assignedGroups: Group[];
+};
 
 const getLetterGrade = (pct: number) => {
   if (pct >= 90) return { grade: "A+", color: "#10b981" };
@@ -42,28 +42,92 @@ const getLetterGrade = (pct: number) => {
 };
 
 export function JuryScores() {
-  const [selectedGroup, setSelectedGroup] = useState(groups.length > 0 ? groups[0].id : 0);
-  const [scores, setScores] = useState<Record<number, Record<string, number>>>(initialScores);
-  const [feedbacks, setFeedbacks] = useState<Record<number, string>>(initialFeedbacks);
-  const [submitted, setSubmitted] = useState<Set<number>>(new Set(initialSubmittedIds));
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [scores, setScores] = useState<Record<string, Record<string, number>>>({});
+  const [feedbacks, setFeedbacks] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
   const [tooltip, setTooltip] = useState<string | null>(null);
 
-  const group = groups.find((g) => g.id === selectedGroup);
-  const groupScores = scores[selectedGroup] || {};
+  const fetchGroups = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await juryAPI.getMyPanels() as { success: boolean; data: PanelData[] };
+      const panels = res.data || [];
+      const allGroups: Group[] = [];
+      const seen = new Set<string>();
+      for (const panel of panels) {
+        for (const group of panel.assignedGroups || []) {
+          if (!seen.has(group._id)) {
+            seen.add(group._id);
+            allGroups.push(group);
+          }
+        }
+      }
+      setGroups(allGroups);
+      if (allGroups.length > 0 && !selectedGroupId) {
+        setSelectedGroupId(allGroups[0]._id);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load groups.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchGroups(); }, []);
+
+  const group = groups.find(g => g._id === selectedGroupId);
+  const groupScores = selectedGroupId ? (scores[selectedGroupId] || {}) : {};
   const total = rubric.reduce((sum, r) => sum + (groupScores[r.key] || 0), 0);
-  const maxTotal = rubric.reduce((sum, r) => sum + r.max, 0);
   const pct = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0;
   const lg = getLetterGrade(pct);
+  const isSubmitted = selectedGroupId ? submitted.has(selectedGroupId) : false;
 
   const setScore = (key: string, val: number) => {
-    setScores((prev) => ({ ...prev, [selectedGroup]: { ...(prev[selectedGroup] || {}), [key]: val } }));
+    if (!selectedGroupId) return;
+    setScores(prev => ({ ...prev, [selectedGroupId]: { ...(prev[selectedGroupId] || {}), [key]: val } }));
   };
 
-  const handleSubmit = () => {
-    setSubmitted((prev) => new Set([...prev, selectedGroup]));
+  const handleSubmit = async () => {
+    if (!selectedGroupId || !group) return;
+    const comment = feedbacks[selectedGroupId] || "";
+
+    // Find the first submission of this group to grade against
+    const groupSubs = group.submissions;
+    if (!groupSubs || groupSubs.length === 0) {
+      alert("No submission found for this group to attach the score to.");
+      return;
+    }
+
+    const submissionId = groupSubs[0]._id;
+    const grade = total;
+
+    try {
+      setSubmitting(true);
+      await juryAPI.submitGrade(submissionId, { comment, grade });
+      setSubmitted(prev => new Set([...prev, selectedGroupId]));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to submit score.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const isSubmitted = submitted.has(selectedGroup);
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[300px]">
+        <div className="text-center">
+          <RefreshCw size={24} className="text-fyp-purple animate-spin mx-auto mb-3" />
+          <p className="text-fyp-text-secondary text-sm">Loading groups...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (groups.length === 0) {
     return (
@@ -72,6 +136,7 @@ export function JuryScores() {
           title="Input Scores"
           subtitle="Use the digital rubric to record grades and feedback in real-time during the defense."
         />
+        {error && <p className="text-red-400 text-sm">{error}</p>}
         <EmptyState
           icon={Star}
           title="No groups to score"
@@ -92,22 +157,24 @@ export function JuryScores() {
       <div className="flex gap-3 flex-wrap">
         {groups.map((g) => (
           <button
-            key={g.id}
-            onClick={() => setSelectedGroup(g.id)}
+            key={g._id}
+            onClick={() => setSelectedGroupId(g._id)}
             className="flex items-center gap-2 px-4 py-3 rounded-xl transition-all"
             style={{
-              backgroundColor: selectedGroup === g.id ? "rgba(139,92,246,0.15)" : "var(--fyp-bg-card)",
-              border: `1.5px solid ${selectedGroup === g.id ? "#8b5cf6" : "var(--fyp-border)"}`,
+              backgroundColor: selectedGroupId === g._id ? "rgba(139,92,246,0.15)" : "var(--fyp-bg-card)",
+              border: `1.5px solid ${selectedGroupId === g._id ? "#8b5cf6" : "var(--fyp-border)"}`,
             }}
           >
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-fyp-purple/20">
-              <span className="text-fyp-purple text-[10px] font-bold">{g.groupNo.split("-")[1]}</span>
+              <span className="text-fyp-purple text-[10px] font-bold">
+                {(g.groupNo || "G").split("-")[1] || "G"}
+              </span>
             </div>
             <div className="text-left">
-              <p className="text-[13px] font-medium text-fyp-text">{g.groupNo}</p>
+              <p className="text-[13px] font-medium text-fyp-text">{g.groupNo || "Group"}</p>
               <p className="text-[11px] text-fyp-text-muted">{g.title}</p>
             </div>
-            {submitted.has(g.id) && <CheckCircle2 size={14} className="text-fyp-green ml-2" />}
+            {submitted.has(g._id) && <CheckCircle2 size={14} className="text-fyp-green ml-2" />}
           </button>
         ))}
       </div>
@@ -118,7 +185,7 @@ export function JuryScores() {
           <div className="lg:col-span-2 p-5 rounded-2xl bg-fyp-card border border-fyp-border">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-[15px] font-semibold text-fyp-text">{group.groupNo} — Evaluation Rubric</h3>
+                <h3 className="text-[15px] font-semibold text-fyp-text">{group.groupNo || "Group"} — Evaluation Rubric</h3>
                 <p className="text-xs text-fyp-text-muted mt-0.5">{group.title}</p>
               </div>
               {isSubmitted && (
@@ -155,24 +222,25 @@ export function JuryScores() {
                       </div>
                     </div>
 
-                    {/* Score buttons */}
                     <div className="flex flex-wrap gap-1.5">
-                      {Array.from({ length: r.max + 1 }, (_, i) => i).filter((_, i) => i % Math.ceil(r.max / 10) === 0 || _ === r.max).map((v) => (
-                        <button
-                          key={v}
-                          onClick={() => !isSubmitted && setScore(r.key, v)}
-                          className="w-8 h-7 rounded-lg text-xs transition-all"
-                          style={{
-                            backgroundColor: val === v ? rColor : "var(--fyp-bg-card)",
-                            color: val === v ? "white" : "var(--fyp-text-secondary)",
-                            border: `1px solid ${val === v ? rColor : "var(--fyp-border)"}`,
-                            fontWeight: val === v ? 600 : 400,
-                            cursor: isSubmitted ? "default" : "pointer",
-                          }}
-                        >
-                          {v}
-                        </button>
-                      ))}
+                      {Array.from({ length: r.max + 1 }, (_, i) => i)
+                        .filter((v, i) => i % Math.ceil(r.max / 10) === 0 || v === r.max)
+                        .map((v) => (
+                          <button
+                            key={v}
+                            onClick={() => !isSubmitted && setScore(r.key, v)}
+                            className="w-8 h-7 rounded-lg text-xs transition-all"
+                            style={{
+                              backgroundColor: val === v ? rColor : "var(--fyp-bg-card)",
+                              color: val === v ? "white" : "var(--fyp-text-secondary)",
+                              border: `1px solid ${val === v ? rColor : "var(--fyp-border)"}`,
+                              fontWeight: val === v ? 600 : 400,
+                              cursor: isSubmitted ? "default" : "pointer",
+                            }}
+                          >
+                            {v}
+                          </button>
+                        ))}
                     </div>
 
                     <input
@@ -191,8 +259,8 @@ export function JuryScores() {
               <label className="text-[13px] text-fyp-text-secondary block mb-2">Jury Comments & Feedback</label>
               <textarea
                 rows={4}
-                value={feedbacks[selectedGroup] || ""}
-                onChange={(e) => setFeedbacks((prev) => ({ ...prev, [selectedGroup]: e.target.value }))}
+                value={feedbacks[selectedGroupId || ""] || ""}
+                onChange={(e) => setFeedbacks(prev => ({ ...prev, [selectedGroupId || ""]: e.target.value }))}
                 placeholder="Enter detailed comments for this group..."
                 className="w-full px-4 py-3 rounded-xl outline-none resize-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]"
                 disabled={isSubmitted}
@@ -200,9 +268,13 @@ export function JuryScores() {
             </div>
 
             {!isSubmitted && (
-              <button onClick={handleSubmit} className="mt-4 flex items-center gap-2 px-5 py-3 rounded-xl hover:opacity-90 transition-all bg-fyp-purple text-white text-sm">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="mt-4 flex items-center gap-2 px-5 py-3 rounded-xl hover:opacity-90 transition-all bg-fyp-purple text-white text-sm disabled:opacity-50"
+              >
                 <Send size={15} />
-                Submit Final Score for {group.groupNo}
+                {submitting ? "Submitting..." : `Submit Final Score for ${group.groupNo || "Group"}`}
               </button>
             )}
           </div>
@@ -227,7 +299,7 @@ export function JuryScores() {
                 <Star size={14} color={lg.color} />
                 <span className="text-lg font-bold" style={{ color: lg.color }}>{lg.grade}</span>
               </div>
-              <p className="text-xs text-fyp-text-secondary">{pct}% — {group.groupNo}</p>
+              <p className="text-xs text-fyp-text-secondary">{pct}% — {group.groupNo || "Group"}</p>
             </div>
 
             <div className="p-5 rounded-2xl bg-fyp-card border border-fyp-border">
@@ -252,18 +324,18 @@ export function JuryScores() {
               </div>
             </div>
 
-            {group.members.length > 0 && (
+            {group.teamMembers && group.teamMembers.length > 0 && (
               <div className="p-5 rounded-2xl bg-fyp-card border border-fyp-border">
                 <p className="text-[13px] font-medium text-fyp-text-secondary mb-2.5">Team</p>
                 <div className="space-y-2">
-                  {group.members.map((m) => (
-                    <div key={m.roll} className="flex items-center gap-2">
+                  {group.teamMembers.map((m, i) => (
+                    <div key={i} className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 bg-fyp-purple/20 text-fyp-purple text-[9px] font-bold">
-                        {m.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                        {m.name.split(" ").map(w => w[0]).join("").slice(0, 2)}
                       </div>
                       <div>
                         <p className="text-xs text-fyp-text">{m.name}</p>
-                        <p className="text-[10px] text-fyp-text-muted">{m.roll}</p>
+                        {m.rollNumber && <p className="text-[10px] text-fyp-text-muted">{m.rollNumber}</p>}
                       </div>
                     </div>
                   ))}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { GraduationCap, Eye, EyeOff, AlertCircle, ChevronRight } from "lucide-react";
-import { fetchApi } from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 
 export function SignupPage() {
   const [name, setName] = useState("");
@@ -16,6 +16,14 @@ export function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   
   const navigate = useNavigate();
+  const { register } = useAuth();
+
+  const roleFirstPaths: Record<string, string> = {
+    student: "/app/student/dashboard",
+    supervisor: "/app/supervisor/requests",
+    admin: "/app/admin/panels",
+    jury: "/app/jury/projects",
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,29 +31,18 @@ export function SignupPage() {
     setIsLoading(true);
 
     try {
-      const payload: any = {
+      const user = await register({
         name,
         email,
         password,
         role,
-      };
-
-      if (role === "student" && rollNumber) {
-        payload.rollNumber = rollNumber;
-      } else if (role !== "student" && department) {
-        payload.department = department;
-      }
-
-      // No need to pass URL prefix because fetchApi uses full URL from env
-      await fetchApi('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(payload)
+        ...(role === "student" && rollNumber ? { rollNumber } : {}),
+        ...(role !== "student" && department ? { department } : {}),
       });
-
-      // Once registered, user can log in
-      navigate("/");
-    } catch (err: any) {
-      setError(err.message || "Failed to create account. Please try again.");
+      // Navigate to the user's role-specific home
+      navigate(roleFirstPaths[user.role] || "/app/student/dashboard");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create account. Please try again.");
     } finally {
       setIsLoading(false);
     }
