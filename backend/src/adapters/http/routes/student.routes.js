@@ -15,7 +15,7 @@ const {
 
 const verifyToken = require('../middlewares/auth.middleware');
 const authorizeRoles = require('../middlewares/role.middleware');
-const validate = require('../middlewares/validation.middleware');
+const checkValidationResult = require('../middlewares/express-validation.middleware');
 const upload = require('../middlewares/upload.middleware');
 
 // All student routes require authentication and the 'student' role
@@ -29,7 +29,7 @@ router.post(
     body('title').trim().notEmpty().withMessage('Proposal title is required.'),
     body('description').trim().notEmpty().withMessage('Description is required.'),
   ],
-  validate,
+  checkValidationResult,
   postProposal
 );
 
@@ -44,7 +44,7 @@ router.get('/milestones', listMilestones);
 router.post(
   '/milestones/:milestoneId/submit',
   [param('milestoneId').isMongoId().withMessage('Invalid milestone ID.')],
-  validate,
+  checkValidationResult,
   upload.single('file'),
   uploadSubmission
 );
@@ -65,7 +65,7 @@ router.get('/profile', getStudentProfile);
 router.put(
   '/profile',
   [body('name').optional().trim().notEmpty().withMessage('Name cannot be empty.')],
-  validate,
+  checkValidationResult,
   updateStudentProfile
 );
 

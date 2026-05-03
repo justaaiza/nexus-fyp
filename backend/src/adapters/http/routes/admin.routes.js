@@ -12,7 +12,7 @@ const {
 
 const verifyToken = require('../middlewares/auth.middleware');
 const authorizeRoles = require('../middlewares/role.middleware');
-const validate = require('../middlewares/validation.middleware');
+const checkValidationResult = require('../middlewares/express-validation.middleware');
 
 // All admin routes require authentication and the 'admin' role
 router.use(verifyToken, authorizeRoles('admin'));
@@ -40,7 +40,7 @@ router.patch('/proposals/:id/approve', approveProposalHandler);
 router.patch(
   '/proposals/:id/reject',
   [body('reason').optional().trim()],
-  validate,
+  checkValidationResult,
   rejectProposalHandler
 );
 
@@ -53,7 +53,7 @@ router.post(
     body('juryMembers').isArray({ min: 3 }).withMessage('At least 3 jury members are required.'),
     body('assignedGroups').isArray({ min: 1 }).withMessage('At least 1 group must be assigned.'),
   ],
-  validate,
+  checkValidationResult,
   createPanelHandler
 );
 // GET /api/admin/panels
@@ -73,7 +73,7 @@ router.post(
     body('audience').optional().isIn(['all', 'students', 'supervisors', 'jury']),
     body('type').optional().isIn(['info', 'warning', 'success']),
   ],
-  validate,
+  checkValidationResult,
   createAnnouncementHandler
 );
 // GET /api/admin/announcements
