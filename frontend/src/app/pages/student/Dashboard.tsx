@@ -1,172 +1,80 @@
-import { useState, useEffect } from "react";
-import { CheckCircle2, Clock, AlertCircle, Upload, ChevronRight, Users, Calendar, TrendingUp, ExternalLink, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Clock, AlertCircle, Upload, ChevronRight, Users, Calendar, TrendingUp, ExternalLink } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCard } from "../../components/StatCard";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card } from "../../components/Card";
 import { EmptyState } from "../../components/EmptyState";
-import { studentAPI } from "../../services/api";
+import {
+  studentDashboardProjectDemo,
+  studentDashboardRecentActivityDemo,
+  studentDashboardTeamMembersDemo,
+  studentDashboardTimelineDemo,
+} from "../../data/demoData";
 
-type ProposalStatus = "pending" | "approved" | "rejected";
-
-type Proposal = {
-  _id: string;
-  title: string;
-  description: string;
-  groupNo?: string;
-  domain?: string;
-  status: ProposalStatus;
-  techStack?: string[];
-  repoUrl?: string;
-  teamMembers?: { _id: string; name: string; rollNumber?: string }[];
-  supervisorPreference?: { _id: string; name: string; email: string };
-  submittedBy?: { _id: string; name: string; email: string; rollNumber?: string };
+type TimelinePhase = {
+  phase: string;
+  date: string;
+  status: "completed" | "upcoming" | "locked";
 };
 
-const statusColorMap: Record<ProposalStatus, string> = {
-  approved: "#10b981",
-  pending: "#f59e0b",
-  rejected: "#ef4444",
+type TeamMember = {
+  name: string;
+  roll: string;
+  role: "Lead" | "Member";
+};
+
+type Activity = {
+  id: number;
+  title: string;
+  detail: string;
+  time: string;
+  type: "submission" | "feedback" | "meeting" | "status";
+};
+
+const project = studentDashboardProjectDemo;
+const teamMembers: TeamMember[] = studentDashboardTeamMembersDemo as TeamMember[];
+const timeline: TimelinePhase[] = studentDashboardTimelineDemo as TimelinePhase[];
+const recentActivity: Activity[] = studentDashboardRecentActivityDemo as Activity[];
+
+const statusColors: Record<string, { dot: string; label: string; labelColor: string }> = {
+  completed: { dot: "#10b981", label: "Completed", labelColor: "#10b981" },
+  upcoming: { dot: "#f59e0b", label: "Upcoming", labelColor: "#f59e0b" },
+  locked: { dot: "#5a6478", label: "Locked", labelColor: "#5a6478" },
 };
 
 export function StudentDashboard() {
-  const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", domain: "", groupNo: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const completedMilestones = timeline.filter((t) => t.status === "completed").length;
+  const upcomingMilestones = timeline.filter((t) => t.status === "upcoming").length;
+  const nextDeadline = timeline.find((t) => t.status === "upcoming")?.date ?? "—";
 
-  const fetchProposal = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await studentAPI.getMyProposal() as { success: boolean; data: Proposal };
-      setProposal(res.data);
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message === "No proposal found.") {
-        setProposal(null); // Not an error, just no proposal yet
-      } else {
-        setError(err instanceof Error ? err.message : "Failed to load proposal.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const statCards = [
+    { label: "Proposal Status", value: project.proposalStatus, icon: CheckCircle2, color: "#10b981" },
+    { label: "Milestones Done", value: `${completedMilestones} / ${timeline.length}`, icon: TrendingUp, color: "#3b7fe8" },
+    { label: "Pending Tasks", value: upcomingMilestones, icon: AlertCircle, color: "#f59e0b" },
+    { label: "Next Deadline", value: nextDeadline, icon: Calendar, color: "#8b5cf6" },
+  ];
 
-  useEffect(() => { fetchProposal(); }, []);
-
-  const handleSubmitProposal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.title || !form.description) return;
-    try {
-      setSubmitting(true);
-      const res = await studentAPI.submitProposal(form) as { success: boolean; data: Proposal };
-      setProposal(res.data);
-      setShowForm(false);
-      setForm({ title: "", description: "", domain: "", groupNo: "" });
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to submit proposal.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[300px]">
-        <div className="text-center">
-          <RefreshCw size={24} className="text-fyp-blue animate-spin mx-auto mb-3" />
-          <p className="text-fyp-text-secondary text-sm">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // No proposal yet — show submission form prompt
-  if (!proposal) {
-    return (
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        <PageHeader title="Proposal Dashboard" subtitle="Spring 2026 · Your FYP Group" />
-
-        {error && (
-          <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-400 text-sm">{error}</div>
-        )}
-
-        {!showForm ? (
-          <div className="p-10 rounded-2xl border-2 border-dashed border-fyp-border flex flex-col items-center justify-center gap-4 bg-fyp-card">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-fyp-blue/10">
-              <Upload size={28} className="text-fyp-blue" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-[17px] font-semibold text-fyp-text mb-1">No proposal submitted yet</h3>
-              <p className="text-sm text-fyp-text-secondary">Submit your FYP proposal to get started. Your coordinator will review and approve it.</p>
-            </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fyp-blue text-white text-sm font-semibold hover:opacity-90 transition-all"
-            >
-              <Upload size={15} /> Submit Proposal
-            </button>
-          </div>
-        ) : (
-          <div className="p-6 rounded-2xl bg-fyp-card border border-fyp-border max-w-2xl">
-            <h3 className="text-[16px] font-semibold text-fyp-text mb-5">Submit FYP Proposal</h3>
-            <form onSubmit={handleSubmitProposal} className="space-y-4">
-              <div>
-                <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Project Title *</label>
-                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g. Nexus Attendance Intelligence" required
-                  className="w-full px-4 py-3 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]" />
-              </div>
-              <div>
-                <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Description *</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Describe your project idea, objectives, and expected outcomes..." rows={4} required
-                  className="w-full px-4 py-3 rounded-xl outline-none resize-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Domain</label>
-                  <input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })}
-                    placeholder="e.g. AI + Web"
-                    className="w-full px-4 py-3 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]" />
-                </div>
-                <div>
-                  <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Group No.</label>
-                  <input value={form.groupNo} onChange={(e) => setForm({ ...form, groupNo: e.target.value })}
-                    placeholder="e.g. G-08"
-                    className="w-full px-4 py-3 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]" />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
-                <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-blue text-white font-semibold hover:opacity-90 disabled:opacity-60">
-                  {submitting ? "Submitting..." : "Submit Proposal"}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Has a proposal
-  const statusColor = statusColorMap[proposal.status] || "#f59e0b";
-  const teamMembers = proposal.teamMembers || [];
+  const activityConfig = {
+    submission: { icon: Upload, color: "#3b7fe8", label: "Submission" },
+    feedback: { icon: CheckCircle2, color: "#10b981", label: "Feedback" },
+    meeting: { icon: Calendar, color: "#8b5cf6", label: "Meeting" },
+    status: { icon: Clock, color: "#f59e0b", label: "Status" },
+  } as const;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Proposal Dashboard" subtitle="Spring 2026 · Your FYP Group" />
+      <PageHeader
+        title="Proposal Dashboard"
+        subtitle="Spring 2026 · Your FYP Group"
+      />
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Proposal Status" value={proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)} icon={CheckCircle2} color={statusColor} />
-        <StatCard label="Team Size" value={teamMembers.length.toString() || "1"} icon={Users} color="#3b7fe8" />
-        <StatCard label="Domain" value={proposal.domain || "—"} icon={TrendingUp} color="#8b5cf6" />
-        <StatCard label="Group No." value={proposal.groupNo || "—"} icon={Calendar} color="#f59e0b" />
+        {statCards.map((card) => (
+          <StatCard key={card.label} label={card.label} value={card.value} icon={card.icon} color={card.color} />
+        ))}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -174,28 +82,20 @@ export function StudentDashboard() {
         <Card className="lg:col-span-2">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-base font-semibold text-fyp-text">{proposal.title}</h3>
-              <p className="text-[13px] text-fyp-text-secondary mt-1">{proposal.groupNo || "No group no."} · {proposal.domain || "General"}</p>
+              <h3 className="text-base font-semibold text-fyp-text">{project.title}</h3>
+              <p className="text-[13px] text-fyp-text-secondary mt-1">{project.groupNo} · {project.domain}</p>
             </div>
-            {proposal.repoUrl && (
-              <a href={proposal.repoUrl} target="_blank" rel="noreferrer" className="text-fyp-blue text-[13px] flex items-center gap-1 hover:underline">
-                View repo <ExternalLink size={12} />
-              </a>
-            )}
+            <a href={project.repoUrl} target="_blank" rel="noreferrer" className="text-fyp-blue text-[13px] flex items-center gap-1 hover:underline">
+              View repo <ExternalLink size={12} />
+            </a>
           </div>
 
           <div className="mb-4">
-            <StatusBadge label={proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)} color={statusColor} />
+            <StatusBadge label={project.proposalStatus} color="#10b981" />
           </div>
 
-          {proposal.status === "rejected" && (
-            <div className="mb-4 p-3 rounded-xl bg-red-950/20 border border-red-500/25 text-red-400 text-[13px]">
-              <strong>Rejected:</strong> {(proposal as unknown as { rejectionReason?: string }).rejectionReason || "No reason provided."}
-            </div>
-          )}
-
           <p className="text-[13px] text-fyp-text-secondary leading-relaxed mb-4">
-            {showDetails ? proposal.description : `${proposal.description.slice(0, 150)}...`}
+            {showDetails ? project.summary : `${project.summary.slice(0, 110)}...`}
           </p>
 
           <button
@@ -206,80 +106,133 @@ export function StudentDashboard() {
           </button>
 
           {/* Supervisor Info */}
-          {proposal.supervisorPreference && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-fyp-elevated border border-fyp-border mb-4">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-fyp-green/20 text-fyp-green text-[13px] font-semibold">
-                {proposal.supervisorPreference.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-fyp-text">{proposal.supervisorPreference.name}</p>
-                <p className="text-xs text-fyp-text-muted">{proposal.supervisorPreference.email}</p>
-              </div>
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-fyp-elevated border border-fyp-border mb-4">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-fyp-green/20 text-fyp-green text-[13px] font-semibold">
+              {project.supervisor.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
             </div>
-          )}
+            <div>
+              <p className="text-[13px] font-medium text-fyp-text">{project.supervisor.name}</p>
+              <p className="text-xs text-fyp-text-muted">{project.supervisor.email}</p>
+            </div>
+          </div>
 
-          {proposal.techStack && proposal.techStack.length > 0 && (
-            <div className="flex gap-2 flex-wrap mb-4">
-              {proposal.techStack.map((tech) => (
-                <span key={tech} className="px-2 py-0.5 rounded-lg text-[11px] bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">
-                  {tech}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="flex gap-2 flex-wrap mb-4">
+            {project.techStack.map((tech) => (
+              <span key={tech} className="px-2 py-0.5 rounded-lg text-[11px] bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">
+                {tech}
+              </span>
+            ))}
+          </div>
 
           {/* Team Members */}
-          {teamMembers.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
                 <Users size={14} className="text-fyp-text-muted" />
                 <span className="text-[13px] text-fyp-text-secondary">Team Members</span>
               </div>
-              <div className="space-y-2">
-                {teamMembers.map((member) => (
-                  <div key={member._id} className="flex items-center gap-3 p-3 rounded-xl bg-fyp-elevated border border-fyp-border">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-fyp-blue/20 text-fyp-blue text-[11px] font-semibold">
-                      {member.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+            </div>
+
+            <div className="space-y-2">
+              {teamMembers.map((member) => (
+                <div key={member.roll} className="flex items-center gap-3 p-3 rounded-xl bg-fyp-elevated border border-fyp-border">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-fyp-blue/20 text-fyp-blue text-[11px] font-semibold">
+                    {member.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-fyp-text">{member.name}</p>
+                    <p className="text-xs text-fyp-text-muted">{member.roll}</p>
+                  </div>
+                  <StatusBadge label={member.role} color={member.role === "Lead" ? "#3b7fe8" : "#5a6478"} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Timeline */}
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar size={15} className="text-fyp-text-muted" />
+            <h3 className="text-[15px] font-semibold text-fyp-text">FYP Timeline</h3>
+          </div>
+
+          {timeline.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title="No timeline set"
+              description="Your FYP timeline phases will appear here"
+            />
+          ) : (
+            <div className="space-y-1">
+              {timeline.map((item, idx) => {
+                const s = statusColors[item.status];
+                const isLast = idx === timeline.length - 1;
+                return (
+                  <div key={item.phase} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className="w-3 h-3 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: s.dot }} />
+                      {!isLast && (
+                        <div className="w-px flex-1 mt-1 bg-fyp-border" style={{ minHeight: "20px" }} />
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-fyp-text">{member.name}</p>
-                      <p className="text-xs text-fyp-text-muted">{member.rollNumber || "—"}</p>
+                    <div className="pb-4 flex-1">
+                      <p className="text-[13px]" style={{ color: item.status === "locked" ? "var(--fyp-text-muted)" : "var(--fyp-text-primary)" }}>
+                        {item.phase}
+                      </p>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <p className="text-[11px] text-fyp-text-muted">{item.date}</p>
+                        <span className="text-[10px]" style={{ color: s.labelColor }}>{s.label}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           )}
         </Card>
-
-        {/* Quick info card */}
-        <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <AlertCircle size={15} className="text-fyp-text-muted" />
-            <h3 className="text-[15px] font-semibold text-fyp-text">Proposal Status</h3>
-          </div>
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-fyp-elevated border border-fyp-border text-center">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: `${statusColor}20` }}>
-                <CheckCircle2 size={22} color={statusColor} />
-              </div>
-              <p className="text-[15px] font-semibold text-fyp-text capitalize">{proposal.status}</p>
-              <p className="text-[12px] text-fyp-text-muted mt-1">
-                {proposal.status === "pending" && "Awaiting coordinator review."}
-                {proposal.status === "approved" && "Your proposal has been approved!"}
-                {proposal.status === "rejected" && "Your proposal was rejected. Check the reason above."}
-              </p>
-            </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-fyp-text-secondary border border-fyp-border hover:bg-fyp-elevated transition-all"
-            >
-              <Upload size={13} /> Submit New Proposal
-            </button>
-            <p className="text-[11px] text-fyp-text-muted text-center">Submitting a new proposal will replace your current one.</p>
-          </div>
-        </Card>
       </div>
+
+      {/* Recent Activity */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-[15px] font-semibold text-fyp-text">Recent Activity</h3>
+          <button className="text-fyp-blue text-[13px] flex items-center gap-1">
+            View all <ChevronRight size={13} />
+          </button>
+        </div>
+
+        {recentActivity.length === 0 ? (
+          <EmptyState
+            icon={Clock}
+            title="No recent activity"
+            description="Your recent project activities will appear here"
+          />
+        ) : (
+          <div className="space-y-2">
+            {recentActivity.map((item) => {
+              const cfg = activityConfig[item.type];
+              const Icon = cfg.icon;
+
+              return (
+                <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl bg-fyp-elevated border border-fyp-border">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${cfg.color}20` }}>
+                    <Icon size={14} color={cfg.color} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-[13px] font-medium text-fyp-text">{item.title}</p>
+                      <StatusBadge label={cfg.label} color={cfg.color} />
+                    </div>
+                    <p className="text-xs text-fyp-text-secondary mt-0.5">{item.detail}</p>
+                  </div>
+                  <p className="text-[11px] text-fyp-text-muted flex-shrink-0">{item.time}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

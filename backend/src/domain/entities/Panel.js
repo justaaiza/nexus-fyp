@@ -1,20 +1,15 @@
-// ============================================================
-// Domain Entity: Panel
-// ============================================================
-
+/**
+ * Panel domain entity.
+ * Represents a defense panel with jury members and assigned student groups.
+ */
 class Panel {
-  constructor({ id, name, juryMembers, assignedGroups, defenseDate, room, createdAt }) {
+  constructor({ id, name, juryMembers, assignedGroups, defenseDate, createdAt }) {
     this.id = id;
     this.name = name;
-    this.juryMembers = juryMembers || [];    // ref: User[]
-    this.assignedGroups = assignedGroups || []; // ref: Proposal[]
-    this.defenseDate = defenseDate || null;
-    this.room = room || null;
+    this.juryMembers = juryMembers || [];
+    this.assignedGroups = assignedGroups || [];
+    this.defenseDate = defenseDate;
     this.createdAt = createdAt || new Date();
-  }
-
-  hasEnoughJurors(min = 3) {
-    return this.juryMembers.length >= min;
   }
 }
 

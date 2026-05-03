@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
@@ -19,21 +18,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: 6,
-      select: false,    // never return password by default
+      select: false,
     },
     role: {
       type: String,
       enum: ['student', 'supervisor', 'admin', 'jury'],
-      required: true,
+      required: [true, 'Role is required'],
     },
     rollNumber: {
       type: String,
-      trim: true,
-      default: null,    // students only
+      default: null,
     },
     department: {
       type: String,
-      trim: true,
       default: null,
     },
     isApproved: {
@@ -43,17 +40,5 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// Hash password before save
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
-// Instance method: compare plain vs hashed
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
 
 module.exports = mongoose.model('User', userSchema);

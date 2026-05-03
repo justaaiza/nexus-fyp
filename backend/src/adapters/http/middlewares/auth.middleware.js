@@ -1,29 +1,40 @@
 const jwt = require('jsonwebtoken');
-const userRepository = require('../../../adapters/db/repositories/MongoUserRepository');
+const env = require('../../../config/env');
+const AppError = require('../../../utils/AppError');
+const MongoUserRepository = require('../../db/repositories/MongoUserRepository');
+
+const userRepo = new MongoUserRepository();
 
 /**
- * verifyToken — Validates JWT from Authorization header.
- * Attaches `req.user` with { id, role } on success.
+ * Middleware: verifyToken
+ * Extracts and verifies the JWT from the Authorization header.
+ * Attaches the full user object (without password) to req.user.
  */
 const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'No token provided.' });
+      throw new AppError('Access denied. No token provided.', 401);
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, env.JWT_SECRET);
 
-    const user = await userRepository.findById(decoded.id);
+    const user = await userRepo.findById(decoded.id);
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Token is no longer valid.' });
+      throw new AppError('User belonging to this token no longer exists.', 401);
     }
 
     req.user = user;
     next();
-  } catch (err) {
-    return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return next(new AppError('Invalid token.', 401));
+    }
+    if (error.name === 'TokenExpiredError') {
+      return next(new AppError('Token has expired.', 401));
+    }
+    next(error);
   }
 };
 

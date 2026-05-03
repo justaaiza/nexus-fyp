@@ -2,23 +2,33 @@ const IAnnouncementRepository = require('../../../ports/repositories/IAnnounceme
 const AnnouncementModel = require('../models/AnnouncementModel');
 
 class MongoAnnouncementRepository extends IAnnouncementRepository {
-  async create(data) {
-    return AnnouncementModel.create(data);
+  async findById(id) {
+    return AnnouncementModel.findById(id)
+      .populate('postedBy', 'name email role')
+      .lean();
   }
 
-  async findAll() {
-    return AnnouncementModel.find()
-      .populate('postedBy', 'name email')
-      .sort({ pinned: -1, createdAt: -1 });
+  async findAll(filter = {}) {
+    return AnnouncementModel.find(filter)
+      .populate('postedBy', 'name email role')
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
-  async update(id, data) {
-    return AnnouncementModel.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  async create(announcementData) {
+    const announcement = await AnnouncementModel.create(announcementData);
+    return announcement.toObject();
   }
 
-  async delete(id) {
-    return AnnouncementModel.findByIdAndDelete(id);
+  async updateById(id, data) {
+    return AnnouncementModel.findByIdAndUpdate(id, data, { new: true, runValidators: true })
+      .populate('postedBy', 'name email role')
+      .lean();
+  }
+
+  async deleteById(id) {
+    return AnnouncementModel.findByIdAndDelete(id).lean();
   }
 }
 
-module.exports = new MongoAnnouncementRepository();
+module.exports = MongoAnnouncementRepository;

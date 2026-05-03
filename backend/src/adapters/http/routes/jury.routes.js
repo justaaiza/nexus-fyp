@@ -1,31 +1,34 @@
-/**
- * jury.routes.js
- *
- * ─── EXTENSION POINT FOR PARTNER ────────────────────────────────────────────
- * This file is intentionally minimal. Your partner (handling Jury role)
- * should add their routes here.
- *
- * Suggested endpoints to implement:
- *  GET    /api/jury/projects                  — View assigned projects (via Panel)
- *  GET    /api/jury/deliverables              — View project deliverables
- *  POST   /api/jury/submissions/:id/score     — Submit scores + feedback
- *  GET    /api/jury/scores                    — View all jury scores
- *
- * The FeedbackModel, PanelModel, SubmissionModel are already in place.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
 const express = require('express');
 const router = express.Router();
-
+const juryController = require('../controllers/JuryController');
 const verifyToken = require('../middlewares/auth.middleware');
 const authorizeRoles = require('../middlewares/role.middleware');
+const validate = require('../middlewares/validation.middleware');
+const {
+  panelParamsSchema,
+  groupSubmissionsSchema,
+  submissionParamsSchema,
+  submitGradeSchema,
+  updateProfileSchema,
+} = require('../validators/jury.validator');
 
+/* All routes require authentication + jury role */
 router.use(verifyToken, authorizeRoles('jury'));
 
-// TODO (Partner): Add jury route handlers below
-router.get('/', (req, res) => {
-  res.json({ success: true, message: 'Jury API — routes to be implemented by partner.' });
-});
+/* ── Panels ── */
+router.get('/panels/me', juryController.getMyPanels);
+router.get('/panels/:panelId/groups', validate(panelParamsSchema), juryController.getPanelGroups);
+
+/* ── Submissions ── */
+router.get('/submissions/:groupId', validate(groupSubmissionsSchema), juryController.getGroupSubmissions);
+router.get('/submissions/:submissionId/file', validate(submissionParamsSchema), juryController.getSubmissionFile);
+
+/* ── Grading ── */
+router.post('/submissions/:submissionId/grade', validate(submitGradeSchema), juryController.submitGrade);
+router.get('/submissions/:submissionId/grade', validate(submissionParamsSchema), juryController.getMyGrade);
+
+/* ── Profile ── */
+router.get('/profile', juryController.getProfile);
+router.put('/profile', validate(updateProfileSchema), juryController.updateProfile);
 
 module.exports = router;

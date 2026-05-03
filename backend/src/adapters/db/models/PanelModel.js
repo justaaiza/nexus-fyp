@@ -20,12 +20,7 @@ const panelSchema = new mongoose.Schema(
       },
     ],
     defenseDate: {
-      type: String,   // kept as string (e.g. "Mon, 27 Apr · 09:00-10:00") matching frontend
-      default: null,
-    },
-    room: {
-      type: String,
-      trim: true,
+      type: Date,
       default: null,
     },
   },

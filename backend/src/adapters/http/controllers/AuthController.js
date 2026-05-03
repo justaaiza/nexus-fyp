@@ -1,30 +1,37 @@
-const { registerUser, loginUser, getMe } = require('../../../application/auth/auth.usecase');
+const MongoUserRepository = require('../../db/repositories/MongoUserRepository');
+const register = require('../../../application/auth/register.usecase');
+const login = require('../../../application/auth/login.usecase');
+const getMe = require('../../../application/auth/getMe.usecase');
 
-const register = async (req, res) => {
-  try {
-    const result = await registerUser(req.body);
-    res.status(201).json({ success: true, data: result });
-  } catch (err) {
-    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+const userRepo = new MongoUserRepository();
+
+class AuthController {
+  async register(req, res, next) {
+    try {
+      const user = await register(userRepo, req.body);
+      res.status(201).json({ success: true, data: user });
+    } catch (error) {
+      next(error);
+    }
   }
-};
 
-const login = async (req, res) => {
-  try {
-    const result = await loginUser(req.body);
-    res.status(200).json({ success: true, data: result });
-  } catch (err) {
-    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  async login(req, res, next) {
+    try {
+      const result = await login(userRepo, req.body);
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
   }
-};
 
-const me = async (req, res) => {
-  try {
-    const user = await getMe(req.user._id);
-    res.status(200).json({ success: true, data: user });
-  } catch (err) {
-    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  async getMe(req, res, next) {
+    try {
+      const user = await getMe(userRepo, req.user._id);
+      res.status(200).json({ success: true, data: user });
+    } catch (error) {
+      next(error);
+    }
   }
-};
+}
 
-module.exports = { register, login, me };
+module.exports = new AuthController();

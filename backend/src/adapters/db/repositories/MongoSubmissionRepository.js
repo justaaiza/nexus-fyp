@@ -2,35 +2,54 @@ const ISubmissionRepository = require('../../../ports/repositories/ISubmissionRe
 const SubmissionModel = require('../models/SubmissionModel');
 
 class MongoSubmissionRepository extends ISubmissionRepository {
-  async create(data) {
-    return SubmissionModel.create(data);
-  }
-
   async findById(id) {
     return SubmissionModel.findById(id)
-      .populate('milestone', 'title deadline phase')
-      .populate('submittedBy', 'name email rollNumber');
-  }
-
-  async findByUserId(userId) {
-    return SubmissionModel.find({ submittedBy: userId })
-      .populate('milestone', 'title deadline phase description')
-      .sort({ submittedAt: -1 });
-  }
-
-  async findAll(filters = {}) {
-    const query = {};
-    if (filters.milestone) query.milestone = filters.milestone;
-    if (filters.status) query.status = filters.status;
-    return SubmissionModel.find(query)
-      .populate('milestone', 'title deadline phase')
+      .populate('milestone', 'title description deadline phase')
       .populate('submittedBy', 'name email rollNumber')
-      .sort({ submittedAt: -1 });
+      .lean();
   }
 
-  async update(id, data) {
-    return SubmissionModel.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  async findAll(filter = {}) {
+    return SubmissionModel.find(filter)
+      .populate('milestone', 'title description deadline phase')
+      .populate('submittedBy', 'name email rollNumber')
+      .sort({ submittedAt: -1 })
+      .lean();
+  }
+
+  async findBySubmittedBy(userId) {
+    return SubmissionModel.find({ submittedBy: userId })
+      .populate('milestone', 'title description deadline phase')
+      .sort({ submittedAt: -1 })
+      .lean();
+  }
+
+  async findByMilestone(milestoneId) {
+    return SubmissionModel.find({ milestone: milestoneId })
+      .populate('submittedBy', 'name email rollNumber')
+      .sort({ submittedAt: -1 })
+      .lean();
+  }
+
+  async findByMultipleUsers(userIds) {
+    return SubmissionModel.find({ submittedBy: { $in: userIds } })
+      .populate('milestone', 'title description deadline phase')
+      .populate('submittedBy', 'name email rollNumber')
+      .sort({ submittedAt: -1 })
+      .lean();
+  }
+
+  async create(submissionData) {
+    const submission = await SubmissionModel.create(submissionData);
+    return submission.toObject();
+  }
+
+  async updateById(id, data) {
+    return SubmissionModel.findByIdAndUpdate(id, data, { new: true, runValidators: true })
+      .populate('milestone', 'title description deadline phase')
+      .populate('submittedBy', 'name email rollNumber')
+      .lean();
   }
 }
 
-module.exports = new MongoSubmissionRepository();
+module.exports = MongoSubmissionRepository;

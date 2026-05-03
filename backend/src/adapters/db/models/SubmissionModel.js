@@ -16,27 +16,19 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: [true, 'File URL is required'],
     },
-    fileName: {
-      type: String,
-      required: true,
-    },
-    fileSize: {
-      type: Number,
-      default: 0,
-    },
     fileType: {
       type: String,
-      enum: ['pdf', 'zip', 'mp4'],
-      required: true,
+      enum: ['pdf', 'zip'],
+      required: [true, 'File type is required'],
+    },
+    submittedAt: {
+      type: Date,
+      default: Date.now,
     },
     status: {
       type: String,
       enum: ['submitted', 'graded'],
       default: 'submitted',
-    },
-    submittedAt: {
-      type: Date,
-      default: Date.now,
     },
   },
   { timestamps: true }

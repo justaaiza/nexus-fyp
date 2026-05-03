@@ -1,19 +1,17 @@
+const AppError = require('../../../utils/AppError');
+
 /**
- * authorizeRoles — RBAC guard factory.
- * Usage: authorizeRoles('admin', 'supervisor')
- *
- * Must be used AFTER verifyToken.
+ * Middleware: authorizeRoles
+ * Restricts access to specific roles.
+ * Usage: authorizeRoles('supervisor', 'admin')
  */
-const authorizeRoles = (...allowedRoles) => {
+const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ success: false, message: 'Not authenticated.' });
+      return next(new AppError('Authentication required.', 401));
     }
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `Access denied. Required role(s): ${allowedRoles.join(', ')}.`,
-      });
+    if (!roles.includes(req.user.role)) {
+      return next(new AppError('You do not have permission to access this resource.', 403));
     }
     next();
   };

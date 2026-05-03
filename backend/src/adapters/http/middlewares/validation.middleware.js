@@ -1,19 +1,30 @@
-const { validationResult } = require('express-validator');
+const AppError = require('../../../utils/AppError');
 
 /**
- * validate — Reads express-validator errors and short-circuits with 400
- * if any validation rule fails. Place AFTER your validation rules array.
+ * Middleware: validate
+ * Validates req.body against a Joi schema.
+ * Optionally validates req.params and req.query as well.
+ *
+ * @param {Object} schema - { body?: JoiSchema, params?: JoiSchema, query?: JoiSchema }
  */
-const validate = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      message: 'Validation failed.',
-      errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
-    });
-  }
-  next();
+const validate = (schema) => {
+  return (req, res, next) => {
+    const targets = ['body', 'params', 'query'];
+    for (const target of targets) {
+      if (schema[target]) {
+        const { error, value } = schema[target].validate(req[target], {
+          abortEarly: false,
+          stripUnknown: true,
+        });
+        if (error) {
+          const message = error.details.map((d) => d.message).join(', ');
+          return next(new AppError(message, 400));
+        }
+        req[target] = value;
+      }
+    }
+    next();
+  };
 };
 
 module.exports = validate;

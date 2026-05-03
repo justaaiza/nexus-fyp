@@ -7,7 +7,6 @@ import {
   ChevronDown, Bell, Search, LogOut, Menu, X,
   BookOpen, Shield, Users, ChevronRight
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 
 type Role = "student" | "supervisor" | "admin" | "jury";
 
@@ -79,7 +78,6 @@ export function Layout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [roleDropdown, setRoleDropdown] = useState(false);
-  const { logout } = useAuth();
 
   const currentRole = detectRole(location.pathname);
   const config = roleConfig[currentRole];
@@ -88,11 +86,6 @@ export function Layout() {
   const handleRoleSwitch = (role: Role) => {
     setRoleDropdown(false);
     navigate(roleFirstPaths[role]);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
   };
 
   return (
@@ -204,7 +197,7 @@ export function Layout() {
         {/* Bottom — Sign Out */}
         <div className="p-4 border-t border-fyp-border">
           <button
-            onClick={handleLogout}
+            onClick={() => navigate("/")}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-fyp-card text-[13px] text-fyp-text-secondary"
           >
             <LogOut size={14} />

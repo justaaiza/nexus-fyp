@@ -14,26 +14,19 @@ const feedbackSchema = new mongoose.Schema(
     },
     comment: {
       type: String,
-      required: [true, 'Feedback comment is required'],
+      required: [true, 'Comment is required'],
     },
     grade: {
       type: Number,
-      default: null,
-    },
-    rubric: [
-      {
-        criteria: String,
-        score: Number,
-        max: Number,
-        comment: String,
-      },
-    ],
-    overallFeedback: {
-      type: String,
+      min: 0,
+      max: 100,
       default: null,
     },
   },
   { timestamps: true }
 );
+
+/* One feedback per user per submission */
+feedbackSchema.index({ submission: 1, givenBy: 1 }, { unique: true });
 
 module.exports = mongoose.model('Feedback', feedbackSchema);

@@ -1,14 +1,14 @@
-require('dotenv').config();
-const app = require('./app');
+const env = require('./config/env');
 const connectDB = require('./config/db');
-
-const PORT = process.env.PORT || 5000;
+const app = require('./app');
+const logger = require('./utils/logger');
 
 const startServer = async () => {
-  await connectDB();
-  app.listen(PORT, () => {
-    console.log(`[Server] Nexus FYP API running on http://localhost:${PORT}`);
-    console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+  await connectDB(env.MONGO_URI);
+
+  app.listen(env.PORT, () => {
+    logger.info(`Server running on port ${env.PORT}`);
+    logger.info(`Health check: http://localhost:${env.PORT}/health`);
   });
 };
 

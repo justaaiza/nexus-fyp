@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { GraduationCap, Eye, EyeOff, BookOpen, Shield, Users, ChevronRight, AlertCircle } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { GraduationCap, Eye, EyeOff, BookOpen, Shield, Users, ChevronRight } from "lucide-react";
 
 const roles = [
   {
@@ -38,43 +37,17 @@ const roles = [
   },
 ];
 
-const rolePathMap: Record<string, string> = {
-  student: "/app/student/dashboard",
-  supervisor: "/app/supervisor/requests",
-  admin: "/app/admin/panels",
-  jury: "/app/jury/projects",
-};
-
 export function LoginPage() {
   const [selectedRole, setSelectedRole] = useState("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-
-    if (!email || !password) {
-      setError("Please enter your email and password.");
-      return;
-    }
-
-    try {
-      const user = await login(email, password);
-      // Navigate based on actual role from the server
-      const path = rolePathMap[user.role] || "/app/student/dashboard";
-      navigate(path);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Login failed. Please try again.");
-      }
-    }
+    const role = roles.find((r) => r.id === selectedRole);
+    if (role) navigate(role.path);
   };
 
   return (
@@ -150,7 +123,7 @@ export function LoginPage() {
             <p className="text-sm text-fyp-text-secondary">Sign in to access your FYP portal</p>
           </div>
 
-          {/* Role Selector — visual only, actual role comes from server */}
+          {/* Role Selector */}
           <div className="mb-6">
             <p className="text-[13px] text-fyp-text-secondary mb-2.5">Select your role</p>
             <div className="grid grid-cols-2 gap-3">
@@ -182,14 +155,6 @@ export function LoginPage() {
               })}
             </div>
           </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-red-950/30 border border-red-500/30">
-              <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
-              <p className="text-[13px] text-red-400">{error}</p>
-            </div>
-          )}
 
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
@@ -239,20 +204,12 @@ export function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all hover:opacity-90 bg-fyp-blue text-white text-sm font-semibold disabled:opacity-60"
+              className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all hover:opacity-90 bg-fyp-blue text-white text-sm font-semibold"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
-              {!isLoading && <ChevronRight size={16} />}
+              Sign In
+              <ChevronRight size={16} />
             </button>
           </form>
-
-          <p className="text-center text-[13px] text-fyp-text-muted mt-6">
-            Don't have an account?{" "}
-            <span className="text-fyp-blue cursor-pointer hover:underline">
-              Contact your coordinator
-            </span>
-          </p>
         </div>
       </div>
     </div>

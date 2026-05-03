@@ -1,8 +1,6 @@
-# Nexus FYP Management System — Backend
+# Nexus FYP — Backend API
 
-A production-ready REST API for the FAST NUCES Final Year Project (FYP) Management Platform, built with **Hexagonal Architecture (Ports & Adapters)**.
-
----
+Backend API for the **FAST NUCES FYP Management System**. This module handles the **Supervisor** and **Jury/Panel** roles. The Student and Admin/Coordinator modules are designed as extension points for a partner to integrate seamlessly.
 
 ## Tech Stack
 
@@ -10,142 +8,125 @@ A production-ready REST API for the FAST NUCES Final Year Project (FYP) Manageme
 |---|---|
 | Runtime | Node.js |
 | Framework | Express.js |
-| Database | MongoDB via Mongoose |
-| Auth | JWT + bcrypt |
-| File Upload | Multer |
-| Validation | express-validator |
+| Database | MongoDB (via Mongoose ODM) |
+| Auth | JWT + bcrypt + RBAC |
+| Validation | Joi |
+| File Upload | Multer (local disk) |
 | Architecture | Hexagonal (Ports & Adapters) |
 
----
-
-## Folder Structure
+## Architecture — Hexagonal (Ports & Adapters)
 
 ```
 src/
-├── domain/               # Core business logic — zero framework dependencies
-│   ├── entities/         # User, Proposal, Milestone, Submission, Feedback, Panel, Announcement
-│   └── rules/            # eligibility.js — business invariant checks
-│
-├── application/          # Use cases (orchestrate domain + ports)
-│   ├── auth/             # auth.usecase.js
-│   ├── student/          # proposal, milestone, feedback, profile use cases
-│   └── admin/            # userManagement, proposalManagement, panel, announcement, stats use cases
-│
-├── ports/                # Abstract interfaces (contracts)
-│   └── repositories/     # IUserRepository, IProposalRepository, … (7 total)
-│
-├── adapters/             # Concrete implementations
+├── domain/                   # Pure business logic — ZERO framework dependencies
+│   ├── entities/             # User, Proposal, Milestone, Submission, Feedback, Panel, Announcement
+│   └── rules/                # gradingRules.js, eligibilityRules.js
+├── application/              # Use cases (orchestration layer)
+│   ├── auth/                 # register, login, getMe
+│   ├── supervisor/           # 12 use cases (requests, milestones, submissions, feedback, profile)
+│   └── jury/                 # 8 use cases (panels, submissions, grading, profile)
+├── ports/                    # Abstract interfaces (contracts)
+│   ├── repositories/         # IUserRepository, IProposalRepository, etc.
+│   └── services/             # IEmailService (stub for future)
+├── adapters/                 # Concrete implementations
 │   ├── db/
-│   │   ├── models/       # Mongoose schemas (UserModel, ProposalModel, …)
-│   │   └── repositories/ # MongoUserRepository, MongoProposalRepository, …
+│   │   ├── models/           # Mongoose schemas
+│   │   └── repositories/     # MongoXxxRepository implementations
 │   └── http/
-│       ├── routes/       # auth, student, admin, supervisor (stub), jury (stub)
-│       ├── controllers/  # AuthController, StudentController, AdminController
-│       └── middlewares/  # auth, role, validation, upload
-│
-├── config/               # db.js — MongoDB connection
-├── app.js                # Express configuration
-└── server.js             # Entry point
+│       ├── routes/           # Express route definitions
+│       ├── controllers/      # Thin controllers (delegate to use cases)
+│       ├── middlewares/      # auth, role, validation, upload, error
+│       └── validators/       # Joi schemas
+├── config/                   # db.js, env.js
+├── utils/                    # AppError.js, logger.js
+├── app.js                    # Express app setup
+└── server.js                 # Entry point
 ```
 
----
+**Key principle:** Business logic lives ONLY in `domain/` and `application/`. Controllers are thin — they extract request data and call use cases.
 
-## Setup Instructions
+## Setup
 
-### 1. Install dependencies
+### Prerequisites
+- Node.js v18+
+- MongoDB Atlas cluster (or local MongoDB)
+
+### Installation
 
 ```bash
 cd backend
 npm install
 ```
 
-### 2. Configure environment
+### Configuration
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and fill in:
-- `MONGO_URI` — your MongoDB Atlas connection string
-- `JWT_SECRET` — a strong random string
-- `CLIENT_URL` — frontend URL (default: `http://localhost:5173`)
+Edit `.env` with your values:
+```
+PORT=5000
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/nexus-fyp
+JWT_SECRET=your_long_random_secret
+JWT_EXPIRES_IN=7d
+```
 
-### 3. Start development server
+### Run
 
 ```bash
-npm run dev
+npm run dev      # Development (nodemon, auto-restart)
+npm start        # Production
 ```
 
-The server will start at `http://localhost:5000`.
-
----
-
-## API Endpoint Summary
-
-### Auth — `/api/auth`
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Login — returns JWT |
-| GET  | `/api/auth/me` | Get current user profile |
-
-### Student — `/api/student` (role: `student`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/student/proposals` | Submit new proposal |
-| GET  | `/api/student/proposals/me` | View own proposal |
-| GET  | `/api/student/milestones` | View all milestones |
-| POST | `/api/student/milestones/:id/submit` | Upload deliverable (multipart/form-data) |
-| GET  | `/api/student/submissions/me` | View own submissions |
-| GET  | `/api/student/feedback/me` | View feedback on submissions |
-| GET  | `/api/student/profile` | View profile |
-| PUT  | `/api/student/profile` | Update profile |
-
-### Admin — `/api/admin` (role: `admin`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET    | `/api/admin/stats` | Dashboard counts |
-| GET    | `/api/admin/users` | List users (filter by `?role=student`) |
-| PATCH  | `/api/admin/users/:id/approve` | Approve user |
-| PATCH  | `/api/admin/users/:id/reject` | Reject user |
-| DELETE | `/api/admin/users/:id` | Delete user |
-| GET    | `/api/admin/proposals` | List proposals (filter by `?status=pending`) |
-| PATCH  | `/api/admin/proposals/:id/approve` | Approve proposal |
-| PATCH  | `/api/admin/proposals/:id/reject` | Reject proposal |
-| POST   | `/api/admin/panels` | Create defense panel |
-| GET    | `/api/admin/panels` | List all panels |
-| PUT    | `/api/admin/panels/:id` | Update panel |
-| DELETE | `/api/admin/panels/:id` | Delete panel |
-| POST   | `/api/admin/announcements` | Post announcement |
-| GET    | `/api/admin/announcements` | List announcements |
-| PATCH  | `/api/admin/announcements/:id/pin` | Toggle pin |
-| DELETE | `/api/admin/announcements/:id` | Delete announcement |
-
-### Extension Points (for Partner)
-
-- **Supervisor**: `src/adapters/http/routes/supervisor.routes.js` — well-documented TODO comments
-- **Jury**: `src/adapters/http/routes/jury.routes.js` — well-documented TODO comments
-- Models (`MilestoneModel`, `FeedbackModel`, `SubmissionModel`) and repositories are all implemented.
-
----
-
-## Authentication
-
-All protected routes require:
+The server will log:
 ```
-Authorization: Bearer <JWT_TOKEN>
+[INFO] MongoDB connected successfully
+[INFO] Server running on port 5000
 ```
 
-JWT is returned from `/api/auth/login` and `/api/auth/register`.
+## API Endpoints
 
----
+### Auth (all roles)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | Public | Register (pending admin approval) |
+| POST | `/api/auth/login` | Public | Login → JWT |
+| GET | `/api/auth/me` | Token | Current user profile |
+
+### Supervisor
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/supervisor/requests` | View incoming supervision requests |
+| PATCH | `/api/supervisor/requests/:proposalId/accept` | Accept a request |
+| PATCH | `/api/supervisor/requests/:proposalId/reject` | Reject a request |
+| POST | `/api/supervisor/milestones` | Create milestone |
+| GET | `/api/supervisor/milestones` | List own milestones |
+| PUT | `/api/supervisor/milestones/:id` | Update milestone |
+| DELETE | `/api/supervisor/milestones/:id` | Delete milestone |
+| GET | `/api/supervisor/submissions` | View submissions from supervised students |
+| GET | `/api/supervisor/submissions/:id` | View specific submission |
+| POST | `/api/supervisor/submissions/:submissionId/feedback` | Submit feedback + grade |
+| GET | `/api/supervisor/submissions/:submissionId/feedback` | View feedback on submission |
+| GET | `/api/supervisor/profile` | View own profile |
+| PUT | `/api/supervisor/profile` | Update profile |
+
+### Jury
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/jury/panels/me` | View assigned panels |
+| GET | `/api/jury/panels/:panelId/groups` | View groups in panel |
+| GET | `/api/jury/submissions/:groupId` | View group submissions |
+| GET | `/api/jury/submissions/:submissionId/file` | Access submission file |
+| POST | `/api/jury/submissions/:submissionId/grade` | Submit grade + feedback |
+| GET | `/api/jury/submissions/:submissionId/grade` | View own grade |
+| GET | `/api/jury/profile` | View own profile |
+| PUT | `/api/jury/profile` | Update profile |
 
 ## Response Format
-
-All responses follow this structure:
 
 **Success:**
 ```json
@@ -154,17 +135,24 @@ All responses follow this structure:
 
 **Error:**
 ```json
-{ "success": false, "message": "Reason for failure." }
+{ "success": false, "message": "Error description" }
 ```
 
----
+## Extension Guide (for Partner)
 
-## File Uploads
+Your partner needs to add **Student** and **Admin/Coordinator** modules. Here's how:
 
-Submit deliverables via `POST /api/student/milestones/:id/submit` with:
-- Content-Type: `multipart/form-data`
-- Field name: `file`
-- Accepted formats: `.pdf`, `.zip`, `.mp4`
+1. **Use cases:** Create `src/application/student/` and `src/application/admin/` directories
+2. **Controllers:** Add `StudentController.js` and `AdminController.js` in `src/adapters/http/controllers/`
+3. **Routes:** Add `student.routes.js` and `admin.routes.js` in `src/adapters/http/routes/`
+4. **Register routes:** Uncomment the TODO section in `src/adapters/http/routes/index.js`
+5. **Validators:** Add `student.validator.js` and `admin.validator.js` in `src/adapters/http/validators/`
+
+All shared infrastructure is ready: models, repositories, auth middleware, role guards, error handling, and file upload.
+
+## File Upload
+
+- Files stored in `./uploads/` (auto-created)
 - Max size: 50 MB
-
-Files are stored in `/uploads/` and accessible at `http://localhost:5000/uploads/<filename>`.
+- Allowed types: PDF, ZIP
+- Accessible via: `http://localhost:5000/uploads/<filename>`

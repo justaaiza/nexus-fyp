@@ -4,12 +4,12 @@ const proposalSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'Proposal title is required'],
+      required: [true, 'Title is required'],
       trim: true,
     },
     description: {
       type: String,
-      required: [true, 'Proposal description is required'],
+      required: [true, 'Description is required'],
     },
     teamMembers: [
       {
@@ -34,25 +34,6 @@ const proposalSchema = new mongoose.Schema(
     },
     rejectionReason: {
       type: String,
-      default: null,
-    },
-    domain: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    techStack: {
-      type: [String],
-      default: [],
-    },
-    repoUrl: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    groupNo: {
-      type: String,
-      trim: true,
       default: null,
     },
   },

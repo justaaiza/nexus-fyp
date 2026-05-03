@@ -4,12 +4,12 @@ const milestoneSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'Milestone title is required'],
+      required: [true, 'Title is required'],
       trim: true,
     },
     description: {
       type: String,
-      required: [true, 'Milestone description is required'],
+      required: [true, 'Description is required'],
     },
     deadline: {
       type: Date,
@@ -18,11 +18,7 @@ const milestoneSchema = new mongoose.Schema(
     phase: {
       type: String,
       enum: ['FYP-1', 'FYP-2'],
-      default: 'FYP-1',
-    },
-    acceptedTypes: {
-      type: [String],
-      default: ['pdf'],
+      required: [true, 'Phase is required'],
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

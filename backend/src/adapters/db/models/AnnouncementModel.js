@@ -4,31 +4,31 @@ const announcementSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'Announcement title is required'],
+      required: [true, 'Title is required'],
       trim: true,
     },
     content: {
       type: String,
-      required: [true, 'Announcement content is required'],
-    },
-    audience: {
-      type: String,
-      enum: ['all', 'students', 'supervisors', 'jury'],
-      default: 'all',
-    },
-    type: {
-      type: String,
-      enum: ['info', 'warning', 'success'],
-      default: 'info',
+      required: [true, 'Content is required'],
     },
     postedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
+    audience: {
+      type: String,
+      enum: ['all', 'students', 'supervisors', 'jury'],
+      default: 'all',
+    },
     pinned: {
       type: Boolean,
       default: false,
+    },
+    type: {
+      type: String,
+      enum: ['info', 'warning', 'success'],
+      default: 'info',
     },
   },
   { timestamps: true }

@@ -1,43 +1,50 @@
 const IFeedbackRepository = require('../../../ports/repositories/IFeedbackRepository');
 const FeedbackModel = require('../models/FeedbackModel');
-const SubmissionModel = require('../models/SubmissionModel');
 
 class MongoFeedbackRepository extends IFeedbackRepository {
-  async create(data) {
-    return FeedbackModel.create(data);
-  }
-
-  async findBySubmissionId(submissionId) {
-    return FeedbackModel.find({ submission: submissionId })
-      .populate('givenBy', 'name email role')
-      .sort({ createdAt: -1 });
-  }
-
-  /**
-   * Find all feedback for submissions that belong to a specific user.
-   */
-  async findByUserId(userId) {
-    // 1. Find submissions by user
-    const submissions = await SubmissionModel.find({ submittedBy: userId })
-      .populate('milestone', 'title deadline phase description');
-
-    const submissionIds = submissions.map((s) => s._id);
-
-    // 2. Find feedback for those submissions
-    const feedbackList = await FeedbackModel.find({ submission: { $in: submissionIds } })
-      .populate({ path: 'submission', populate: { path: 'milestone', select: 'title deadline phase' } })
-      .populate('givenBy', 'name email role')
-      .sort({ createdAt: -1 });
-
-    return feedbackList;
-  }
-
-  async findAll(filters = {}) {
-    return FeedbackModel.find(filters)
+  async findById(id) {
+    return FeedbackModel.findById(id)
       .populate('submission')
       .populate('givenBy', 'name email role')
-      .sort({ createdAt: -1 });
+      .lean();
+  }
+
+  async findBySubmission(submissionId) {
+    return FeedbackModel.find({ submission: submissionId })
+      .populate('givenBy', 'name email role')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  async findBySubmissionAndGiver(submissionId, giverId) {
+    return FeedbackModel.findOne({ submission: submissionId, givenBy: giverId })
+      .populate('givenBy', 'name email role')
+      .lean();
+  }
+
+  async findByGivenBy(userId) {
+    return FeedbackModel.find({ givenBy: userId })
+      .populate({
+        path: 'submission',
+        populate: [
+          { path: 'milestone', select: 'title deadline phase' },
+          { path: 'submittedBy', select: 'name email rollNumber' },
+        ],
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  async create(feedbackData) {
+    const feedback = await FeedbackModel.create(feedbackData);
+    return feedback.toObject();
+  }
+
+  async updateById(id, data) {
+    return FeedbackModel.findByIdAndUpdate(id, data, { new: true, runValidators: true })
+      .populate('givenBy', 'name email role')
+      .lean();
   }
 }
 
-module.exports = new MongoFeedbackRepository();
+module.exports = MongoFeedbackRepository;

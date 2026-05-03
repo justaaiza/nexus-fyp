@@ -2,32 +2,64 @@ const IPanelRepository = require('../../../ports/repositories/IPanelRepository')
 const PanelModel = require('../models/PanelModel');
 
 class MongoPanelRepository extends IPanelRepository {
-  async create(data) {
-    return PanelModel.create(data);
-  }
-
   async findById(id) {
     return PanelModel.findById(id)
       .populate('juryMembers', 'name email department')
-      .populate({ path: 'assignedGroups', populate: { path: 'submittedBy', select: 'name email rollNumber' } });
+      .populate({
+        path: 'assignedGroups',
+        populate: [
+          { path: 'teamMembers', select: 'name email rollNumber' },
+          { path: 'submittedBy', select: 'name email rollNumber' },
+          { path: 'supervisorPreference', select: 'name email department' },
+        ],
+      })
+      .lean();
   }
 
-  async findAll() {
-    return PanelModel.find()
+  async findAll(filter = {}) {
+    return PanelModel.find(filter)
       .populate('juryMembers', 'name email department')
-      .populate({ path: 'assignedGroups', select: 'title groupNo submittedBy status' })
-      .sort({ createdAt: -1 });
+      .populate({
+        path: 'assignedGroups',
+        populate: [
+          { path: 'teamMembers', select: 'name email rollNumber' },
+          { path: 'submittedBy', select: 'name email rollNumber' },
+        ],
+      })
+      .sort({ defenseDate: 1 })
+      .lean();
   }
 
-  async update(id, data) {
+  async findByJuryMember(userId) {
+    return PanelModel.find({ juryMembers: userId })
+      .populate('juryMembers', 'name email department')
+      .populate({
+        path: 'assignedGroups',
+        populate: [
+          { path: 'teamMembers', select: 'name email rollNumber' },
+          { path: 'submittedBy', select: 'name email rollNumber' },
+          { path: 'supervisorPreference', select: 'name email department' },
+        ],
+      })
+      .sort({ defenseDate: 1 })
+      .lean();
+  }
+
+  async create(panelData) {
+    const panel = await PanelModel.create(panelData);
+    return panel.toObject();
+  }
+
+  async updateById(id, data) {
     return PanelModel.findByIdAndUpdate(id, data, { new: true, runValidators: true })
       .populate('juryMembers', 'name email department')
-      .populate({ path: 'assignedGroups', select: 'title groupNo' });
+      .populate('assignedGroups')
+      .lean();
   }
 
-  async delete(id) {
-    return PanelModel.findByIdAndDelete(id);
+  async deleteById(id) {
+    return PanelModel.findByIdAndDelete(id).lean();
   }
 }
 
-module.exports = new MongoPanelRepository();
+module.exports = MongoPanelRepository;
