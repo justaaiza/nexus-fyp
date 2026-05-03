@@ -1,4 +1,5 @@
-const proposalRepository = require('../../adapters/db/repositories/MongoProposalRepository');
+const MongoProposalRepository = require('../../adapters/db/repositories/MongoProposalRepository');
+const proposalRepository = new MongoProposalRepository();
 
 // ─── List All Proposals ───────────────────────────────────────────────────────
 const listProposals = async (filters = {}) => {
@@ -10,7 +11,7 @@ const approveProposal = async (proposalId) => {
   const proposal = await proposalRepository.findById(proposalId);
   if (!proposal) throw Object.assign(new Error('Proposal not found.'), { statusCode: 404 });
 
-  return proposalRepository.update(proposalId, { status: 'approved', rejectionReason: null });
+  return proposalRepository.updateById(proposalId, { status: 'approved', rejectionReason: null });
 };
 
 // ─── Reject Proposal ──────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ const rejectProposal = async (proposalId, reason) => {
   const proposal = await proposalRepository.findById(proposalId);
   if (!proposal) throw Object.assign(new Error('Proposal not found.'), { statusCode: 404 });
 
-  return proposalRepository.update(proposalId, {
+  return proposalRepository.updateById(proposalId, {
     status: 'rejected',
     rejectionReason: reason || 'No reason provided.',
   });

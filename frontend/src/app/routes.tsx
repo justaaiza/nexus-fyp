@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate, useLocation } from "react-router";
 import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/Login";
 import { StudentDashboard } from "./pages/student/Dashboard";
@@ -13,6 +13,19 @@ import { AdminAnnouncements } from "./pages/admin/Announcements";
 import { JuryProjects } from "./pages/jury/Projects";
 import { JuryDeliverables } from "./pages/jury/Deliverables";
 import { JuryScores } from "./pages/jury/Scores";
+import { SignupPage } from "./pages/Signup";
+import { useAuth } from "./context/AuthContext";
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { token } = useAuth();
+  const location = useLocation();
+
+  if (!token) {
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+}
 
 export const router = createBrowserRouter([
   {
@@ -20,8 +33,16 @@ export const router = createBrowserRouter([
     Component: LoginPage,
   },
   {
+    path: "/signup",
+    Component: SignupPage,
+  },
+  {
     path: "/app",
-    Component: Layout,
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Navigate to="student/dashboard" replace /> },
       // Student

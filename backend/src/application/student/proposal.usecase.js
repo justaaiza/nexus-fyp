@@ -1,5 +1,7 @@
-const proposalRepository = require('../../adapters/db/repositories/MongoProposalRepository');
-const userRepository = require('../../adapters/db/repositories/MongoUserRepository');
+const MongoProposalRepository = require('../../adapters/db/repositories/MongoProposalRepository');
+const proposalRepository = new MongoProposalRepository();
+const MongoUserRepository = require('../../adapters/db/repositories/MongoUserRepository');
+const userRepository = new MongoUserRepository();
 const { canStudentSubmitProposal } = require('../../domain/rules/eligibility');
 
 // ─── Submit Proposal ─────────────────────────────────────────────────────────
@@ -11,8 +13,8 @@ const submitProposal = async (studentId, { title, description, teamMembers, supe
   if (!allowed) throw Object.assign(new Error(reason), { statusCode: 403 });
 
   // Only one active proposal per student
-  const existing = await proposalRepository.findByUserId(studentId);
-  if (existing) throw Object.assign(new Error('You have already submitted a proposal.'), { statusCode: 409 });
+  const existing = await proposalRepository.findBySubmittedBy(studentId);
+  if (existing && existing.length > 0) throw Object.assign(new Error('You have already submitted a proposal.'), { statusCode: 409 });
 
   const proposal = await proposalRepository.create({
     title,
@@ -32,9 +34,9 @@ const submitProposal = async (studentId, { title, description, teamMembers, supe
 
 // ─── Get Own Proposal ─────────────────────────────────────────────────────────
 const getMyProposal = async (studentId) => {
-  const proposal = await proposalRepository.findByUserId(studentId);
-  if (!proposal) throw Object.assign(new Error('No proposal found.'), { statusCode: 404 });
-  return proposal;
+  const proposals = await proposalRepository.findBySubmittedBy(studentId);
+  if (!proposals || proposals.length === 0) throw Object.assign(new Error('No proposal found.'), { statusCode: 404 });
+  return proposals[0];
 };
 
 module.exports = { submitProposal, getMyProposal };

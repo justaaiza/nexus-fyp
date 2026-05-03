@@ -1,188 +1,177 @@
-import { useState } from "react";
-import { ClipboardCheck, FileText, Download, Star, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CheckCircle2, ChevronRight, FileText, Download, User, MessageSquare, RefreshCw } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
 import { EmptyState } from "../../components/EmptyState";
-import { supervisorEvaluationSubmissionsDemo } from "../../data/demoData";
-
-const rubricCriteria = [
-  { key: "completeness", label: "Completeness", max: 25 },
-  { key: "technical", label: "Technical Depth", max: 25 },
-  { key: "clarity", label: "Clarity & Structure", max: 20 },
-  { key: "diagrams", label: "Diagrams & Visuals", max: 15 },
-  { key: "presentation", label: "Formatting", max: 15 },
-];
+import { supervisorAPI } from "../../services/api";
 
 type Submission = {
-  id: number;
-  group: string;
-  title: string;
-  lead: string;
-  milestone: string;
-  submittedDate: string;
-  file: string;
-  fileSize: string;
+  _id: string;
+  milestone: { _id: string; title: string; deadline: string; phase: string };
+  group: { _id: string; groupNo: string; title: string };
   status: "pending" | "graded";
-  existingGrades: Record<string, number> | null;
-  existingFeedback: string;
+  fileUrl: string;
+  submittedAt: string;
+  feedback?: { grade: number; comment: string };
 };
 
-const submissions: Submission[] = supervisorEvaluationSubmissionsDemo as Submission[];
-
 export function SupervisorEvaluation() {
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const [grades, setGrades] = useState<Record<number, Record<string, number>>>({});
-  const [feedbacks, setFeedbacks] = useState<Record<number, string>>({});
-  const [submitted, setSubmitted] = useState<Set<number>>(new Set());
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const [feedbackForm, setFeedbackForm] = useState({ grade: "", comment: "" });
+  const [submitting, setSubmitting] = useState(false);
 
-  const setGrade = (subId: number, key: string, val: number) => {
-    setGrades((prev) => ({ ...prev, [subId]: { ...(prev[subId] || {}), [key]: val } }));
+  const fetchSubmissions = async () => {
+    try {
+      setLoading(true);
+      const res = await supervisorAPI.getSubmissions() as { success: boolean; data: Submission[] };
+      setSubmissions(res.data || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load submissions.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getGrades = (sub: Submission) => grades[sub.id] || sub.existingGrades || {};
+  useEffect(() => { fetchSubmissions(); }, []);
 
-  const getTotal = (sub: Submission) => {
-    const g = getGrades(sub);
-    return rubricCriteria.reduce((sum, c) => sum + (g[c.key] || 0), 0);
+  const handleSubmitFeedback = async (subId: string) => {
+    if (!feedbackForm.grade || !feedbackForm.comment) return;
+    try {
+      setSubmitting(true);
+      await supervisorAPI.submitFeedback(subId, {
+        grade: Number(feedbackForm.grade),
+        comment: feedbackForm.comment,
+      });
+      setSubmissions(prev => prev.map(s => s._id === subId ? { ...s, status: "graded", feedback: { grade: Number(feedbackForm.grade), comment: feedbackForm.comment } } : s));
+      setFeedbackForm({ grade: "", comment: "" });
+      setSelectedSub(null);
+      alert("Feedback submitted successfully!");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to submit feedback.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleSubmit = (id: number) => {
-    setSubmitted((prev) => new Set([...prev, id]));
-    setExpanded(null);
-  };
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[300px]">
+        <div className="text-center">
+          <RefreshCw size={24} className="text-fyp-blue animate-spin mx-auto mb-3" />
+          <p className="text-fyp-text-secondary text-sm">Loading evaluations...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const pending = submissions.filter((s) => s.status !== "graded");
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <PageHeader
-        title="Evaluation"
-        subtitle="Grade submissions using the digital rubric and provide feedback."
+        title="Evaluations & Grading"
+        subtitle="Review deliverables and provide feedback/grades to your groups."
       />
 
+      {error && (
+        <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-400 text-sm flex gap-2 items-center">
+          {error}
+          <button onClick={fetchSubmissions} className="ml-auto text-xs underline">Retry</button>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <StatCardSimple label="Pending Review" value={submissions.filter((s) => s.status === "pending" && !submitted.has(s.id)).length} color="#f59e0b" />
-        <StatCardSimple label="Graded" value={submissions.filter((s) => s.status === "graded").length + submitted.size} color="#10b981" />
-        <StatCardSimple label="Total Submissions" value={submissions.length} color="#3b7fe8" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCardSimple label="Pending Evaluation" value={pending.length} color="#f59e0b" />
+        <StatCardSimple label="Graded" value={submissions.filter(s => s.status === "graded").length} color="#10b981" />
       </div>
 
-      {/* Submission Cards */}
       {submissions.length === 0 ? (
         <EmptyState
-          icon={ClipboardCheck}
-          title="No submissions to evaluate"
-          description="Student submissions will appear here for grading once they upload their deliverables."
+          icon={FileText}
+          title="No submissions yet"
+          description="Group submissions will appear here once they upload their deliverables."
         />
       ) : (
         <div className="space-y-4">
           {submissions.map((sub) => {
-            const isOpen = expanded === sub.id;
-            const isGraded = sub.status === "graded" || submitted.has(sub.id);
-            const total = getTotal(sub);
-            const g = getGrades(sub);
-            const feedback = feedbacks[sub.id] ?? sub.existingFeedback;
+            const isExpanded = selectedSub === sub._id;
 
             return (
-              <div key={sub.id} className="rounded-2xl overflow-hidden bg-fyp-card" style={{ border: `1px solid ${isGraded ? "rgba(16,185,129,0.2)" : "var(--fyp-border)"}` }}>
-                <div className="p-5 flex items-start gap-4 cursor-pointer" onClick={() => setExpanded(isOpen ? null : sub.id)}>
+              <div key={sub._id} className="rounded-2xl overflow-hidden transition-all bg-fyp-card" style={{ border: `1px solid ${sub.status === "graded" ? "var(--fyp-border)" : "rgba(245,158,11,0.25)"}` }}>
+                <div className="p-5 flex items-start gap-4 cursor-pointer" onClick={() => setSelectedSub(isExpanded ? null : sub._id)}>
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-fyp-elevated">
-                    <FileText size={17} color={isGraded ? "#10b981" : "#3b7fe8"} />
+                    <span className="text-fyp-blue text-xs font-bold">{sub.group?.groupNo || "—"}</span>
                   </div>
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-[15px] font-semibold text-fyp-text">{sub.group} — {sub.title}</h3>
-                      <span className="px-2 py-0.5 rounded-lg text-xs" style={{
-                        backgroundColor: isGraded ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)",
-                        color: isGraded ? "#10b981" : "#f59e0b",
-                        border: `1px solid ${isGraded ? "rgba(16,185,129,0.25)" : "rgba(245,158,11,0.25)"}`,
-                      }}>
-                        {isGraded ? "Graded" : "Pending"}
-                      </span>
+                      <h3 className="text-[15px] font-semibold text-fyp-text">{sub.milestone?.title || "Milestone"}</h3>
+                      {sub.status === "graded" ? (
+                        <span className="px-2 py-0.5 rounded-lg text-[11px] bg-fyp-green/10 text-fyp-green border border-fyp-green/20">Graded: {sub.feedback?.grade}/100</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-lg text-[11px] bg-fyp-amber/10 text-fyp-amber border border-fyp-amber/20">Needs Grading</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <span className="text-xs text-fyp-text-muted">{sub.milestone}</span>
-                      <span className="text-xs text-fyp-text-muted">·</span>
-                      <span className="text-xs text-fyp-text-muted">Submitted {sub.submittedDate}</span>
-                      {isGraded && <span className="text-xs font-semibold text-fyp-green">{total}/100</span>}
+                    <div className="flex items-center gap-4 mt-1 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <User size={11} className="text-fyp-text-muted" />
+                        <span className="text-xs text-fyp-text-muted">{sub.group?.title}</span>
+                      </div>
+                      <span className="text-xs text-fyp-text-muted">Submitted {new Date(sub.submittedAt).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  {isOpen ? <ChevronUp size={16} className="text-fyp-text-muted" /> : <ChevronDown size={16} className="text-fyp-text-muted" />}
+
+                  <ChevronRight size={16} className="text-fyp-text-muted transition-transform flex-shrink-0" style={{ transform: isExpanded ? "rotate(90deg)" : "none" }} />
                 </div>
 
-                {isOpen && (
+                {isExpanded && (
                   <div className="border-t border-fyp-border">
-                    <div className="p-5 space-y-5">
-                      {/* File */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-fyp-elevated border border-fyp-border">
-                          <FileText size={13} className="text-fyp-blue" />
-                          <span className="text-[13px] text-fyp-text">{sub.file}</span>
-                          <span className="text-[11px] text-fyp-text-muted">({sub.fileSize})</span>
-                        </div>
-                        <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">
-                          <Download size={13} /> Download
-                        </button>
-                      </div>
-
-                      {/* Rubric */}
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Star size={14} className="text-fyp-text-muted" />
-                            <span className="text-[13px] font-medium text-fyp-text-secondary">Rubric Evaluation</span>
+                    <div className="p-5 flex flex-col md:flex-row gap-6">
+                      <div className="flex-1 space-y-4">
+                        <div className="p-4 rounded-xl bg-fyp-elevated border border-fyp-border flex items-center justify-between">
+                          <div>
+                            <p className="text-[13px] font-medium text-fyp-text flex items-center gap-2"><FileText size={14} className="text-fyp-blue" /> Deliverable File</p>
+                            <p className="text-xs text-fyp-text-muted mt-0.5">Ready for download</p>
                           </div>
-                          <div className="px-3 py-1 rounded-lg" style={{
-                            backgroundColor: total >= 85 ? "rgba(16,185,129,0.1)" : total >= 70 ? "rgba(59,127,232,0.1)" : "rgba(245,158,11,0.1)",
-                            color: total >= 85 ? "#10b981" : total >= 70 ? "#3b7fe8" : "#f59e0b",
-                          }}>
-                            <span className="text-[15px] font-bold">{total}</span>
-                            <span className="text-xs"> / 100</span>
-                          </div>
+                          {sub.fileUrl && (
+                            <a href={`http://localhost:5000${sub.fileUrl}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs bg-fyp-card text-fyp-text-secondary border border-fyp-border hover:opacity-80">
+                              <Download size={13} /> Download
+                            </a>
+                          )}
                         </div>
 
-                        <div className="space-y-3">
-                          {rubricCriteria.map((c) => (
-                            <div key={c.key} className="p-3 rounded-xl bg-fyp-elevated">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-[13px] text-fyp-text">{c.label}</span>
-                                <span className="text-xs text-fyp-text-secondary">Max: {c.max}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <input
-                                  type="range" min={0} max={c.max}
-                                  value={g[c.key] ?? 0}
-                                  onChange={(e) => setGrade(sub.id, c.key, +e.target.value)}
-                                  className="flex-1" style={{ accentColor: "#3b7fe8" }}
-                                  disabled={isGraded}
-                                />
-                                <div className="w-10 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold bg-fyp-blue/10 text-fyp-blue">
-                                  {g[c.key] ?? 0}
-                                </div>
-                              </div>
+                        {sub.status === "graded" && sub.feedback && (
+                          <div className="p-4 rounded-xl bg-fyp-elevated border border-fyp-border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare size={13} className="text-fyp-green" />
+                              <span className="text-[13px] font-medium text-fyp-text-secondary">Your Feedback</span>
                             </div>
-                          ))}
+                            <p className="text-[13px] text-fyp-text-secondary leading-relaxed">{sub.feedback.comment}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {sub.status !== "graded" && (
+                        <div className="w-full md:w-[320px] p-4 rounded-xl bg-fyp-elevated border border-fyp-border">
+                          <h4 className="text-[13px] font-semibold text-fyp-text mb-4">Submit Evaluation</h4>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-[11px] text-fyp-text-secondary block mb-1.5 uppercase tracking-wide">Grade (0-100)</label>
+                              <input type="number" min="0" max="100" value={feedbackForm.grade} onChange={(e) => setFeedbackForm({ ...feedbackForm, grade: e.target.value })} className="w-full px-3 py-2 rounded-lg outline-none bg-fyp-card border border-fyp-border text-fyp-text text-[13px]" placeholder="e.g. 85" />
+                            </div>
+                            <div>
+                              <label className="text-[11px] text-fyp-text-secondary block mb-1.5 uppercase tracking-wide">Feedback Comment</label>
+                              <textarea value={feedbackForm.comment} onChange={(e) => setFeedbackForm({ ...feedbackForm, comment: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg outline-none resize-none bg-fyp-card border border-fyp-border text-fyp-text text-[13px]" placeholder="Detailed feedback..." />
+                            </div>
+                            <button onClick={() => handleSubmitFeedback(sub._id)} disabled={!feedbackForm.grade || !feedbackForm.comment || submitting} className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all hover:opacity-90 bg-fyp-green text-white text-[13px] font-medium disabled:opacity-50">
+                              <CheckCircle2 size={15} /> {submitting ? "Submitting..." : "Submit Grade"}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-
-                      {/* Feedback */}
-                      <div>
-                        <label className="text-[13px] text-fyp-text-secondary block mb-2">Feedback Comments</label>
-                        <textarea
-                          rows={3} value={feedback}
-                          onChange={(e) => setFeedbacks((prev) => ({ ...prev, [sub.id]: e.target.value }))}
-                          placeholder="Write detailed feedback for the student..."
-                          className="w-full px-4 py-3 rounded-xl outline-none resize-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]"
-                          disabled={isGraded}
-                        />
-                      </div>
-
-                      {!isGraded && (
-                        <button
-                          onClick={() => handleSubmit(sub.id)}
-                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm hover:opacity-90 transition-all bg-fyp-green text-white"
-                        >
-                          <Send size={14} />
-                          Submit Grade & Feedback
-                        </button>
                       )}
                     </div>
                   </div>

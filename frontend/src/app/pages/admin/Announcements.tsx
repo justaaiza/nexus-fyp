@@ -1,20 +1,21 @@
-import { useState } from "react";
-import { Megaphone, Plus, Pin, Trash2, GraduationCap, BookOpen, Users, Globe } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Megaphone, Plus, Pin, Trash2, GraduationCap, BookOpen, Users, Globe, RefreshCw } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Modal } from "../../components/Modal";
 import { EmptyState } from "../../components/EmptyState";
-import { adminAnnouncementsDemo } from "../../data/demoData";
+import { adminAPI } from "../../services/api";
 
 type Audience = "all" | "students" | "supervisors" | "jury";
 
 type Announcement = {
-  id: number;
+  _id: string;
   title: string;
-  body: string;
+  content: string;
   audience: Audience;
-  date: string;
+  createdAt: string;
   pinned: boolean;
   type: "info" | "warning" | "success";
+  postedBy?: { name: string; email: string };
 };
 
 const audienceConfig: Record<Audience, { icon: React.ElementType; label: string; color: string; bg: string }> = {
@@ -30,32 +31,74 @@ const typeConfig = {
   success: { border: "rgba(16,185,129,0.3)", accent: "#10b981" },
 };
 
-const initialAnnouncements: Announcement[] = adminAnnouncementsDemo as Announcement[];
-
 export function AdminAnnouncements() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ title: "", body: "", audience: "all" as Audience, type: "info" as "info" | "warning" | "success" });
 
-  const handleCreate = () => {
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await adminAPI.getAnnouncements() as { success: boolean; data: Announcement[] };
+      setAnnouncements(res.data || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load announcements.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAnnouncements(); }, []);
+
+  const handleCreate = async () => {
     if (!form.title || !form.body) return;
-    setAnnouncements((prev) => [
-      { id: prev.length + 1, ...form, date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), pinned: false },
-      ...prev,
-    ]);
-    setForm({ title: "", body: "", audience: "all", type: "info" });
-    setShowForm(false);
+    try {
+      setSubmitting(true);
+      const res = await adminAPI.createAnnouncement({ title: form.title, content: form.body, audience: form.audience, type: form.type }) as { success: boolean; data: Announcement };
+      setAnnouncements((prev) => [res.data, ...prev]);
+      setForm({ title: "", body: "", audience: "all", type: "info" });
+      setShowForm(false);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to create announcement.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const togglePin = (id: number) => {
-    setAnnouncements((prev) => prev.map((a) => (a.id === id ? { ...a, pinned: !a.pinned } : a)));
+  const togglePin = async (id: string) => {
+    try {
+      const res = await adminAPI.togglePin(id) as { success: boolean; data: Announcement };
+      setAnnouncements((prev) => prev.map((a) => a._id === id ? { ...a, pinned: res.data.pinned } : a));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to toggle pin.");
+    }
   };
 
-  const deleteAnnouncement = (id: number) => {
-    setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+  const deleteAnnouncement = async (id: string) => {
+    try {
+      await adminAPI.deleteAnnouncement(id);
+      setAnnouncements((prev) => prev.filter((a) => a._id !== id));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete announcement.");
+    }
   };
 
   const sorted = [...announcements].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[300px]">
+        <div className="text-center">
+          <RefreshCw size={24} className="text-fyp-blue animate-spin mx-auto mb-3" />
+          <p className="text-fyp-text-secondary text-sm">Loading announcements...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -68,6 +111,13 @@ export function AdminAnnouncements() {
           </button>
         }
       />
+
+      {error && (
+        <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-400 text-sm flex gap-2 items-center">
+          {error}
+          <button onClick={fetchAnnouncements} className="ml-auto text-xs underline">Retry</button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -91,20 +141,16 @@ export function AdminAnnouncements() {
 
       {/* Announcements */}
       {sorted.length === 0 ? (
-        <EmptyState
-          icon={Megaphone}
-          title="No announcements"
-          description="Click 'New Post' to publish announcements for students, faculty, or jury members."
-        />
+        <EmptyState icon={Megaphone} title="No announcements" description="Click 'New Post' to publish announcements for students, faculty, or jury members." />
       ) : (
         <div className="space-y-4">
           {sorted.map((ann) => {
-            const audienceCfg = audienceConfig[ann.audience];
+            const audienceCfg = audienceConfig[ann.audience] || audienceConfig["all"];
             const AIcon = audienceCfg.icon;
-            const tc = typeConfig[ann.type];
+            const tc = typeConfig[ann.type] || typeConfig["info"];
 
             return (
-              <div key={ann.id} className="p-5 rounded-2xl bg-fyp-card" style={{ border: `1px solid ${tc.border}`, borderLeft: `3px solid ${tc.accent}` }}>
+              <div key={ann._id} className="p-5 rounded-2xl bg-fyp-card" style={{ border: `1px solid ${tc.border}`, borderLeft: `3px solid ${tc.accent}` }}>
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `${tc.accent}15` }}>
@@ -120,7 +166,7 @@ export function AdminAnnouncements() {
                         <h3 className="text-[15px] font-semibold text-fyp-text">{ann.title}</h3>
                       </div>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-fyp-text-muted">{ann.date}</span>
+                        <span className="text-xs text-fyp-text-muted">{new Date(ann.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                         <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg" style={{ backgroundColor: audienceCfg.bg }}>
                           <AIcon size={10} color={audienceCfg.color} />
                           <span className="text-[10px]" style={{ color: audienceCfg.color }}>{audienceCfg.label}</span>
@@ -129,15 +175,15 @@ export function AdminAnnouncements() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => togglePin(ann.id)} className="p-1.5 rounded-lg transition-all hover:bg-fyp-elevated" title={ann.pinned ? "Unpin" : "Pin"}>
+                    <button onClick={() => togglePin(ann._id)} className="p-1.5 rounded-lg transition-all hover:bg-fyp-elevated" title={ann.pinned ? "Unpin" : "Pin"}>
                       <Pin size={13} color={ann.pinned ? "#f59e0b" : "var(--fyp-text-muted)"} />
                     </button>
-                    <button onClick={() => deleteAnnouncement(ann.id)} className="p-1.5 rounded-lg transition-all hover:bg-red-950/30" title="Delete">
+                    <button onClick={() => deleteAnnouncement(ann._id)} className="p-1.5 rounded-lg transition-all hover:bg-red-950/30" title="Delete">
                       <Trash2 size={13} className="text-fyp-red" />
                     </button>
                   </div>
                 </div>
-                <p className="text-[13px] text-fyp-text-secondary leading-relaxed pl-12">{ann.body}</p>
+                <p className="text-[13px] text-fyp-text-secondary leading-relaxed pl-12">{ann.content}</p>
               </div>
             );
           })}
@@ -148,7 +194,9 @@ export function AdminAnnouncements() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Announcement" maxWidth="max-w-lg"
         footer={<>
           <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
-          <button onClick={handleCreate} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-amber text-[#0d1117] font-semibold">Publish Announcement</button>
+          <button onClick={handleCreate} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-amber text-[#0d1117] font-semibold disabled:opacity-60">
+            {submitting ? "Publishing..." : "Publish Announcement"}
+          </button>
         </>}
       >
         <div className="space-y-4">

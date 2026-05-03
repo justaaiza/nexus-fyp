@@ -136,3 +136,43 @@ export const adminAPI = {
   deleteAnnouncement: (id: string) =>
     request(`/admin/announcements/${id}`, { method: 'DELETE' }),
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPERVISOR
+// ─────────────────────────────────────────────────────────────────────────────
+export const supervisorAPI = {
+  getRequests: () => request('/supervisor/requests'),
+  acceptRequest: (id: string) => request(`/supervisor/requests/${id}/accept`, { method: 'PATCH' }),
+  rejectRequest: (id: string) => request(`/supervisor/requests/${id}/reject`, { method: 'PATCH' }),
+  
+  createMilestone: (body: object) => request('/supervisor/milestones', { method: 'POST', body: JSON.stringify(body) }),
+  getMilestones: () => request('/supervisor/milestones'),
+  updateMilestone: (id: string, body: object) => request(`/supervisor/milestones/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteMilestone: (id: string) => request(`/supervisor/milestones/${id}`, { method: 'DELETE' }),
+  
+  getSubmissions: () => request('/supervisor/submissions'),
+  getSubmissionById: (id: string) => request(`/supervisor/submissions/${id}`),
+  
+  submitFeedback: (submissionId: string, body: object) => request(`/supervisor/submissions/${submissionId}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
+  getFeedback: (submissionId: string) => request(`/supervisor/submissions/${submissionId}/feedback`),
+  
+  getProfile: () => request('/supervisor/profile'),
+  updateProfile: (body: object) => request('/supervisor/profile', { method: 'PUT', body: JSON.stringify(body) }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JURY
+// ─────────────────────────────────────────────────────────────────────────────
+export const juryAPI = {
+  getMyPanels: () => request('/jury/panels/me'),
+  getPanelGroups: (panelId: string) => request(`/jury/panels/${panelId}/groups`),
+  
+  getGroupSubmissions: (groupId: string) => request(`/jury/submissions/${groupId}`),
+  getSubmissionFile: (submissionId: string) => request(`/jury/submissions/${submissionId}/file`),
+  
+  submitGrade: (submissionId: string, body: object) => request(`/jury/submissions/${submissionId}/grade`, { method: 'POST', body: JSON.stringify(body) }),
+  getMyGrade: (submissionId: string) => request(`/jury/submissions/${submissionId}/grade`),
+  
+  getProfile: () => request('/jury/profile'),
+  updateProfile: (body: object) => request('/jury/profile', { method: 'PUT', body: JSON.stringify(body) }),
+};

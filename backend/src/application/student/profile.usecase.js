@@ -1,4 +1,5 @@
-const userRepository = require('../../adapters/db/repositories/MongoUserRepository');
+const MongoUserRepository = require('../../adapters/db/repositories/MongoUserRepository');
+const userRepository = new MongoUserRepository();
 
 // ─── Get Profile ──────────────────────────────────────────────────────────────
 const getProfile = async (userId) => {
@@ -9,7 +10,7 @@ const getProfile = async (userId) => {
 
 // ─── Update Profile ───────────────────────────────────────────────────────────
 const updateProfile = async (userId, { name, rollNumber, department }) => {
-  const updated = await userRepository.update(userId, { name, rollNumber, department });
+  const updated = await userRepository.updateById(userId, { name, rollNumber, department });
   if (!updated) throw Object.assign(new Error('User not found.'), { statusCode: 404 });
   return updated;
 };

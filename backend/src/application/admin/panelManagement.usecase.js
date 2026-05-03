@@ -1,4 +1,5 @@
-const panelRepository = require('../../adapters/db/repositories/MongoPanelRepository');
+const MongoPanelRepository = require('../../adapters/db/repositories/MongoPanelRepository');
+const panelRepository = new MongoPanelRepository();
 const { validatePanelSize, validatePanelGroups } = require('../../domain/rules/eligibility');
 
 // ─── Create Panel ─────────────────────────────────────────────────────────────
@@ -28,12 +29,12 @@ const updatePanel = async (panelId, data) => {
     if (!sizeCheck.valid) throw Object.assign(new Error(sizeCheck.reason), { statusCode: 400 });
   }
 
-  return panelRepository.update(panelId, data);
+  return panelRepository.updateById(panelId, data);
 };
 
 // ─── Delete Panel ─────────────────────────────────────────────────────────────
 const deletePanel = async (panelId) => {
-  const panel = await panelRepository.delete(panelId);
+  const panel = await panelRepository.deleteById(panelId);
   if (!panel) throw Object.assign(new Error('Panel not found.'), { statusCode: 404 });
 };
 

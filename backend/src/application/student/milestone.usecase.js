@@ -1,5 +1,7 @@
-const milestoneRepository = require('../../adapters/db/repositories/MongoMilestoneRepository');
-const submissionRepository = require('../../adapters/db/repositories/MongoSubmissionRepository');
+const MongoMilestoneRepository = require('../../adapters/db/repositories/MongoMilestoneRepository');
+const milestoneRepository = new MongoMilestoneRepository();
+const MongoSubmissionRepository = require('../../adapters/db/repositories/MongoSubmissionRepository');
+const submissionRepository = new MongoSubmissionRepository();
 const MilestoneModel = require('../../adapters/db/models/MilestoneModel');
 const { canStudentSubmitToMilestone } = require('../../domain/rules/eligibility');
 const MilestoneEntity = require('../../domain/entities/Milestone');
@@ -49,7 +51,7 @@ const submitDeliverable = async (milestoneId, studentId, fileInfo) => {
 
 // ─── Get Own Submissions ──────────────────────────────────────────────────────
 const getMySubmissions = async (studentId) => {
-  return submissionRepository.findByUserId(studentId);
+  return submissionRepository.findBySubmittedBy(studentId);
 };
 
 module.exports = { getMilestones, submitDeliverable, getMySubmissions };
