@@ -1,5 +1,5 @@
 const { submitProposal, getMyProposal } = require('../../../application/student/proposal.usecase');
-const { getMilestones, submitDeliverable, getMySubmissions } = require('../../../application/student/milestone.usecase');
+const { getMilestones, submitDeliverable, getMySubmissions, deleteSubmission } = require('../../../application/student/milestone.usecase');
 const { getMyFeedback } = require('../../../application/student/feedback.usecase');
 const { getProfile, updateProfile } = require('../../../application/student/profile.usecase');
 
@@ -8,6 +8,24 @@ const postProposal = async (req, res) => {
   try {
     const proposal = await submitProposal(req.user._id, req.body);
     res.status(201).json({ success: true, data: proposal });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+const updateProposal = async (req, res) => {
+  try {
+    const proposal = await editProposal(req.user._id, req.params.proposalId, req.body);
+    res.status(200).json({ success: true, data: proposal });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+const getProposalOptions = async (req, res) => {
+  try {
+    const options = await getAvailableOptions();
+    res.status(200).json({ success: true, data: options });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
@@ -53,6 +71,15 @@ const getSubmissions = async (req, res) => {
   }
 };
 
+const removeSubmission = async (req, res) => {
+  try {
+    await deleteSubmission(req.params.submissionId, req.user._id);
+    res.status(200).json({ success: true, message: 'Submission deleted.' });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
 // ── Feedback ──────────────────────────────────────────────────────────────────
 const getFeedback = async (req, res) => {
   try {
@@ -84,10 +111,13 @@ const updateStudentProfile = async (req, res) => {
 
 module.exports = {
   postProposal,
+  updateProposal,
+  getProposalOptions,
   getProposal,
   listMilestones,
   uploadSubmission,
   getSubmissions,
+  removeSubmission,
   getFeedback,
   getStudentProfile,
   updateStudentProfile,

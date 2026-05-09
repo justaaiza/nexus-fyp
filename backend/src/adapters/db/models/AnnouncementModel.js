@@ -30,6 +30,12 @@ const announcementSchema = new mongoose.Schema(
       enum: ['info', 'warning', 'success'],
       default: 'info',
     },
+    readBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   { timestamps: true }
 );

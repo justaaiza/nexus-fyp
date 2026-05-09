@@ -61,6 +61,15 @@ export const authAPI = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+export const notificationAPI = {
+  getNotifications: () => request('/notifications'),
+  markAsRead: (id: string) => request(`/notifications/${id}/read`, { method: 'POST' }),
+  markAllAsRead: () => request('/notifications/read-all', { method: 'POST' }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // STUDENT
 // ─────────────────────────────────────────────────────────────────────────────
 export const studentAPI = {
@@ -68,6 +77,8 @@ export const studentAPI = {
     request('/student/proposals', { method: 'POST', body: JSON.stringify(body) }),
 
   getMyProposal: () => request('/student/proposals/me'),
+  getProposalOptions: () => request('/student/proposals/options'),
+  updateProposal: (id: string, body: object) => request(`/student/proposals/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   getMilestones: () => request('/student/milestones'),
 
@@ -78,6 +89,9 @@ export const studentAPI = {
   },
 
   getMySubmissions: () => request('/student/submissions/me'),
+
+  deleteSubmission: (submissionId: string) =>
+    request(`/student/submissions/${submissionId}`, { method: 'DELETE' }),
 
   getMyFeedback: () => request('/student/feedback/me'),
 

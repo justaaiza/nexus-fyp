@@ -161,3 +161,7 @@ Set `VITE_API_URL` in the frontend environment to point to your deployed backend
 ✅ Supervisor Module (Requests, Milestones, Grading)  
 ✅ Jury Module (Panels, Deliverables, Scoring)  
 ⬜ Production Deployment  
+
+cd backend
+node scripts/fresh_reset.js
+node scripts/seed_all.js

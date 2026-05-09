@@ -54,4 +54,20 @@ const getMySubmissions = async (studentId) => {
   return submissionRepository.findBySubmittedBy(studentId);
 };
 
-module.exports = { getMilestones, submitDeliverable, getMySubmissions };
+// ─── Delete Own Submission ────────────────────────────────────────────────────
+const deleteSubmission = async (submissionId, studentId) => {
+  const submission = await submissionRepository.findById(submissionId);
+  if (!submission) throw Object.assign(new Error('Submission not found.'), { statusCode: 404 });
+  if (submission.submittedBy._id.toString() !== studentId.toString() && submission.submittedBy.toString() !== studentId.toString()) {
+    throw Object.assign(new Error('Unauthorized to delete this submission.'), { statusCode: 403 });
+  }
+  // Optional: check if graded, and if so, don't allow deletion
+  if (submission.status === 'graded') {
+    throw Object.assign(new Error('Cannot delete a graded submission.'), { statusCode: 403 });
+  }
+
+  await submissionRepository.deleteById(submissionId);
+  return { success: true };
+};
+
+module.exports = { getMilestones, submitDeliverable, getMySubmissions, deleteSubmission };

@@ -1,54 +1,10 @@
-const MongoProposalRepository = require('../../adapters/db/repositories/MongoProposalRepository');
-const proposalRepository = new MongoProposalRepository();
-const MongoUserRepository = require('../../adapters/db/repositories/MongoUserRepository');
-const userRepository = new MongoUserRepository();
-const { canStudentSubmitProposal } = require('../../domain/rules/eligibility');
+const fs = require('fs');
+const path = './src/application/student/proposal.usecase.js';
+let content = fs.readFileSync(path, 'utf8');
 
-// ─── Submit Proposal ─────────────────────────────────────────────────────────
-const submitProposal = async (studentId, { title, description, teamMembers, supervisorPreference, domain, techStack, repoUrl, groupNo }) => {
-  const user = await userRepository.findById(studentId);
-  if (!user) throw Object.assign(new Error('User not found.'), { statusCode: 404 });
-
-  const { allowed, reason } = canStudentSubmitProposal(user);
-  if (!allowed) throw Object.assign(new Error(reason), { statusCode: 403 });
-
-  // Only one active proposal per student
-  const existing = await proposalRepository.findBySubmittedBy(studentId);
-  if (existing && existing.length > 0) throw Object.assign(new Error('You have already submitted a proposal.'), { statusCode: 409 });
-
-  if (!teamMembers || teamMembers.length < 1 || teamMembers.length > 2) {
-    throw Object.assign(new Error('Group must have 2 to 3 members in total (you + 1 or 2 others).'), { statusCode: 400 });
-  }
-
-  const proposal = await proposalRepository.create({
-    title,
-    description,
-    teamMembers: teamMembers || [],
-    supervisorPreference: supervisorPreference || null,
-    submittedBy: studentId,
-    domain: domain || null,
-    techStack: techStack || [],
-    repoUrl: repoUrl || null,
-    groupNo: groupNo || null,
-    status: 'pending',
-  });
-
-  return proposalRepository.findById(proposal._id);
-};
-
-// ─── Get Own Proposal ─────────────────────────────────────────────────────────
-const getMyProposal = async (studentId) => {
-  // Get all proposals. A student might be a teamMember instead of the submitter.
-  let proposals = await proposalRepository.findBySubmittedBy(studentId);
-  if (!proposals || proposals.length === 0) {
-    const all = await proposalRepository.findAll();
-    proposals = all.filter(p => p.teamMembers.some(m => m._id.toString() === studentId.toString()));
-  }
-  if (!proposals || proposals.length === 0) throw Object.assign(new Error('No proposal found.'), { statusCode: 404 });
-  return proposals[0];
-};
-
-
+content = content.replace(
+  "module.exports = { submitProposal, getMyProposal };",
+`
 // ─── Edit Proposal ────────────────────────────────────────────────────────────
 const editProposal = async (studentId, proposalId, payload) => {
   const proposal = await proposalRepository.findById(proposalId);
@@ -104,4 +60,20 @@ const getAvailableOptions = async () => {
 };
 
 module.exports = { submitProposal, getMyProposal, editProposal, getAvailableOptions };
+`
+);
 
+// update submitProposal validation
+content = content.replace(
+  "  if (existing && existing.length > 0) throw Object.assign(new Error('You have already submitted a proposal.'), { statusCode: 409 });",
+  "  if (existing && existing.length > 0) throw Object.assign(new Error('You have already submitted a proposal.'), { statusCode: 409 });\n\n  if (!teamMembers || teamMembers.length < 1 || teamMembers.length > 2) {\n    throw Object.assign(new Error('Group must have 2 to 3 members in total (you + 1 or 2 others).'), { statusCode: 400 });\n  }"
+);
+
+// update getMyProposal condition
+content = content.replace(
+  "const proposals = await proposalRepository.findBySubmittedBy(studentId);",
+  "// Get all proposals. A student might be a teamMember instead of the submitter.\n  let proposals = await proposalRepository.findBySubmittedBy(studentId);\n  if (!proposals || proposals.length === 0) {\n    const all = await proposalRepository.findAll();\n    proposals = all.filter(p => p.teamMembers.some(m => m._id.toString() === studentId.toString()));\n  }"
+)
+
+fs.writeFileSync(path, content, 'utf8');
+console.log("Updated usecase.");

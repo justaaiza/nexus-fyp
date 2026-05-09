@@ -23,6 +23,10 @@ const panelSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    room: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

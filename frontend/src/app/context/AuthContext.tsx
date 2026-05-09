@@ -45,13 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: { name: string; email: string; password: string; role: string; rollNumber?: string; department?: string }): Promise<User> => {
     setIsLoading(true);
     try {
-      const res = await authAPI.register(data) as { success: boolean; data: { token: string; user: User } };
-      const { token: newToken, user: newUser } = res.data;
-      setToken(newToken);
-      setStoredUser(newUser);
-      setTokenState(newToken);
-      setUser(newUser);
-      return newUser;
+      const res = await authAPI.register(data) as { success: boolean; data: User };
+      return res.data;
     } finally {
       setIsLoading(false);
     }

@@ -31,7 +31,7 @@ export function SignupPage() {
     setIsLoading(true);
 
     try {
-      const user = await register({
+      await register({
         name,
         email,
         password,
@@ -39,8 +39,8 @@ export function SignupPage() {
         ...(role === "student" && rollNumber ? { rollNumber } : {}),
         ...(role !== "student" && department ? { department } : {}),
       });
-      // Navigate to the user's role-specific home
-      navigate(roleFirstPaths[user.role] || "/app/student/dashboard");
+      alert("Account created successfully! Please wait for administrative approval to login.");
+      navigate("/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create account. Please try again.");
     } finally {

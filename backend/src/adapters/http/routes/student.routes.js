@@ -5,9 +5,12 @@ const router = express.Router();
 const {
   postProposal,
   getProposal,
+  updateProposal,
+  getProposalOptions,
   listMilestones,
   uploadSubmission,
   getSubmissions,
+  removeSubmission,
   getFeedback,
   getStudentProfile,
   updateStudentProfile,
@@ -36,6 +39,12 @@ router.post(
 // GET /api/student/proposals/me
 router.get('/proposals/me', getProposal);
 
+// GET /api/student/proposals/options
+router.get('/proposals/options', getProposalOptions);
+
+// PUT /api/student/proposals/:proposalId
+router.put('/proposals/:proposalId', updateProposal);
+
 // ── Milestones ────────────────────────────────────────────────────────────────
 // GET /api/student/milestones
 router.get('/milestones', listMilestones);
@@ -52,6 +61,9 @@ router.post(
 // ── Submissions ───────────────────────────────────────────────────────────────
 // GET /api/student/submissions/me
 router.get('/submissions/me', getSubmissions);
+
+// DELETE /api/student/submissions/:submissionId
+router.delete('/submissions/:submissionId', removeSubmission);
 
 // ── Feedback ──────────────────────────────────────────────────────────────────
 // GET /api/student/feedback/me

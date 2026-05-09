@@ -32,7 +32,26 @@ export function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", domain: "", groupNo: "" });
+  const [form, setForm] = useState({ title: "", description: "", domain: "", groupNo: "", teamMembers: [] as string[], supervisorPreference: "" });
+  const [options, setOptions] = useState<{ availableStudents: any[], supervisors: any[] }>({ availableStudents: [], supervisors: [] });
+  
+  useEffect(() => {
+    studentAPI.getProposalOptions().then((res: any) => setOptions(res.data)).catch(console.error);
+  }, []);
+  
+  useEffect(() => {
+    if (proposal) {
+        setForm({
+            title: proposal.title,
+            description: proposal.description,
+            domain: proposal.domain || "",
+            groupNo: proposal.groupNo || "",
+            teamMembers: proposal.teamMembers?.map(m => m._id) || [],
+            supervisorPreference: proposal.supervisorPreference?._id || ""
+        });
+    }
+  }, [proposal]);
+  
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,10 +79,23 @@ export function StudentDashboard() {
     if (!form.title || !form.description) return;
     try {
       setSubmitting(true);
+      let res;
+      if (proposal) {
+          res = await studentAPI.updateProposal(proposal._id, form) as { success: boolean; data: Proposal };
+      } else {
+          res = await studentAPI.submitProposal(form) as { success: boolean; data: Proposal };
+      }
+      setProposal(res.data);
+      setShowForm(false);
+    } catch (err: unknown) {
+    e.preventDefault();
+    if (!form.title || !form.description) return;
+    try {
+      setSubmitting(true);
       const res = await studentAPI.submitProposal(form) as { success: boolean; data: Proposal };
       setProposal(res.data);
       setShowForm(false);
-      setForm({ title: "", description: "", domain: "", groupNo: "" });
+      // setForm({ title: "", description: "", domain: "", groupNo: "", teamMembers: [], supervisorPreference: "" });
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to submit proposal.");
     } finally {
@@ -258,9 +290,14 @@ export function StudentDashboard() {
                 {proposal.status === "rejected" && "Your proposal was rejected."}
               </p>
             </div>
-            <button onClick={() => setShowForm(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-fyp-text-secondary border border-fyp-border hover:bg-fyp-elevated transition-all">
-              <Upload size={13} /> Submit New Proposal
-            </button>
+            {proposal.status !== "approved" && (
+              <button 
+                onClick={() => setShowForm(true)} 
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-fyp-text-secondary border border-fyp-border hover:bg-fyp-elevated transition-all"
+              >
+                <Upload size={13} /> {proposal.status === "rejected" ? "Submit Revised Proposal" : "Edit Proposal"}
+              </button>
+            )}
           </div>
         </Card>
       </div>

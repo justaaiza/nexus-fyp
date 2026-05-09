@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Upload, CheckCircle2, Clock, Lock, FileText, CloudUpload, AlertCircle, RefreshCw } from "lucide-react";
+import { Upload, CheckCircle2, Clock, Lock, FileText, CloudUpload, AlertCircle, RefreshCw, Trash2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Modal } from "../../components/Modal";
 import { EmptyState } from "../../components/EmptyState";
@@ -32,7 +32,9 @@ function getMilestoneStatus(milestone: Milestone): MilestoneStatus {
 
 export function StudentMilestones() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [proposal, setProposal] = useState<any>(null);
   const [error, setError] = useState("");
   const [uploadModal, setUploadModal] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -44,8 +46,12 @@ export function StudentMilestones() {
     try {
       setLoading(true);
       setError("");
-      const res = await studentAPI.getMilestones() as { success: boolean; data: Milestone[] };
-      setMilestones(res.data || []);
+      const [milestonesRes, submissionsRes] = await Promise.all([
+        studentAPI.getMilestones() as Promise<{ success: boolean; data: Milestone[] }>,
+        studentAPI.getMySubmissions() as Promise<{ success: boolean; data: any[] }>
+      ]);
+      setMilestones(milestonesRes.data || []);
+      setSubmissions(submissionsRes.data || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load milestones.");
     } finally {
@@ -72,7 +78,8 @@ export function StudentMilestones() {
     if (!selectedFile || !uploadModal) return;
     try {
       setUploading(true);
-      await studentAPI.submitDeliverable(uploadModal, selectedFile);
+      const res = await studentAPI.submitDeliverable(uploadModal, selectedFile) as { data: any };
+      setSubmissions((prev) => [...prev, res.data]);
       setUploadModal(null);
       setSelectedFile(null);
       alert("Deliverable submitted successfully!");
@@ -82,6 +89,43 @@ export function StudentMilestones() {
       setUploading(false);
     }
   };
+
+  const handleDeleteSubmission = async (submissionId: string) => {
+    if (!confirm("Are you sure you want to remove this submission? You will need to upload a new one before the deadline.")) return;
+    try {
+      await studentAPI.deleteSubmission(submissionId);
+      setSubmissions((prev) => prev.filter(s => s._id !== submissionId));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete submission.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[300px]">
+        <div className="text-center">
+          <RefreshCw size={24} className="text-fyp-blue animate-spin mx-auto mb-3" />
+          <p className="text-fyp-text-secondary text-sm">Loading your milestones...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!proposal || proposal.status !== "approved") {
+      return (
+          <div className="p-6 space-y-6 max-w-7xl mx-auto flex items-center justify-center min-h-[500px]">
+              <div className="p-10 rounded-2xl border-2 border-dashed border-fyp-border flex flex-col items-center justify-center gap-4 bg-fyp-card text-center max-w-2xl">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-fyp-blue/10">
+                      <Lock size={28} className="text-fyp-blue" />
+                  </div>
+                  <div>
+                      <h3 className="text-[17px] font-semibold text-fyp-text mb-1">Milestones Locked</h3>
+                      <p className="text-sm text-fyp-text-secondary">You must have an approved FYP proposal to access your milestones. Head over to the Dashboard to track your proposal status.</p>
+                  </div>
+              </div>
+          </div>
+      );
+  }
 
   if (loading) {
     return (
@@ -110,8 +154,9 @@ export function StudentMilestones() {
       ) : (
         <div className="space-y-4">
           {milestones.map((m, idx) => {
-            const status = getMilestoneStatus(m);
-            const cfg = statusConfig[status];
+            const submission = submissions.find(s => s.milestone._id === m._id || s.milestone === m._id);
+            const status = submission ? submission.status : getMilestoneStatus(m);
+            const cfg = statusConfig[status as MilestoneStatus];
             const Icon = cfg.icon;
             const isLocked = status === "locked";
             const types = m.acceptedTypes || ["pdf"];
@@ -145,11 +190,24 @@ export function StudentMilestones() {
                     </div>
                   </div>
 
-                  {!isLocked && (
+                  {!isLocked && !submission && (
                     <div className="flex-shrink-0">
                       <button onClick={() => { setUploadModal(m._id); setSelectedFile(null); }} className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:opacity-90 bg-fyp-blue text-white text-[13px]">
                         <Upload size={14} /> Upload
                       </button>
+                    </div>
+                  )}
+
+                  {submission && (
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      <a href={`http://localhost:5000${submission.fileUrl}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:opacity-90 bg-fyp-elevated text-fyp-text-secondary text-[13px] border border-fyp-border">
+                        <FileText size={14} /> View File
+                      </a>
+                      {submission.status !== 'graded' && !isLocked && (
+                        <button onClick={() => handleDeleteSubmission(submission._id)} className="p-2 rounded-xl transition-all hover:bg-red-950/30 text-fyp-red" title="Remove submission">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
