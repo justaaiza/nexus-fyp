@@ -51,7 +51,17 @@ const submitDeliverable = async (milestoneId, studentId, fileInfo) => {
 
 // ─── Get Own Submissions ──────────────────────────────────────────────────────
 const getMySubmissions = async (studentId) => {
-  return submissionRepository.findBySubmittedBy(studentId);
+  const MongoGroupRepository = require('../../adapters/db/repositories/MongoGroupRepository');
+  const groupRepo = new MongoGroupRepository();
+  const groups = await groupRepo.findByUserId(studentId);
+  
+  let memberIds = [studentId];
+  if (groups && groups.length > 0) {
+    const group = groups[0];
+    memberIds = [...new Set([group.leader._id.toString(), ...group.members.map(m => m.user._id.toString())])];
+  }
+  
+  return submissionRepository.findByMultipleUsers(memberIds);
 };
 
 // ─── Delete Own Submission ────────────────────────────────────────────────────

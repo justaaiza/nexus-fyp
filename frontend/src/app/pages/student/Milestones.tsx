@@ -46,12 +46,14 @@ export function StudentMilestones() {
     try {
       setLoading(true);
       setError("");
-      const [milestonesRes, submissionsRes] = await Promise.all([
+      const [milestonesRes, submissionsRes, proposalRes] = await Promise.all([
         studentAPI.getMilestones() as Promise<{ success: boolean; data: Milestone[] }>,
-        studentAPI.getMySubmissions() as Promise<{ success: boolean; data: any[] }>
+        studentAPI.getMySubmissions() as Promise<{ success: boolean; data: any[] }>,
+        studentAPI.getMyProposal().catch(() => ({ data: null })) as Promise<{ data: any }>
       ]);
       setMilestones(milestonesRes.data || []);
       setSubmissions(submissionsRes.data || []);
+      setProposal(proposalRes.data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load milestones.");
     } finally {

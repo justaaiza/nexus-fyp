@@ -1,4 +1,4 @@
-const { submitProposal, getMyProposal } = require('../../../application/student/proposal.usecase');
+const { submitProposal, getMyProposal, editProposal, getAvailableOptions } = require('../../../application/student/proposal.usecase');
 const { getMilestones, submitDeliverable, getMySubmissions, deleteSubmission } = require('../../../application/student/milestone.usecase');
 const { getMyFeedback } = require('../../../application/student/feedback.usecase');
 const { getProfile, updateProfile } = require('../../../application/student/profile.usecase');

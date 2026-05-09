@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
-import { notificationAPI } from "../services/api";
+import { notificationAPI, studentAPI } from "../services/api";
 import {
   GraduationCap, LayoutDashboard, Upload, MessageSquare,
   UserCheck, CalendarPlus, ClipboardCheck, Users2,
@@ -9,6 +9,7 @@ import {
   ChevronDown, Bell, Search, LogOut, Menu, X,
   BookOpen, Shield, Users, ChevronRight
 } from "lucide-react";
+import logo from "../assets/fast-logo.png";
 
 type Role = "student" | "supervisor" | "admin" | "jury";
 
@@ -90,6 +91,8 @@ export function Layout() {
   const config = roleConfig[currentRole] || roleConfig.student;
   const RoleIcon = config.icon;
 
+  const [proposal, setProposal] = useState<any>(null);
+
   const fetchNotifications = async () => {
     try {
       const res = await notificationAPI.getNotifications() as { data: any[] };
@@ -101,7 +104,10 @@ export function Layout() {
 
   useEffect(() => {
     if (user) fetchNotifications();
-  }, [user]);
+    if (currentRole === "student") {
+      studentAPI.getMyProposal().then((res: any) => setProposal(res.data)).catch(() => { });
+    }
+  }, [user, currentRole]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -145,14 +151,13 @@ export function Layout() {
     <div className="flex h-screen overflow-hidden bg-fyp-base">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 lg:static lg:translate-x-0 bg-fyp-sidebar border-r border-fyp-border ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 lg:static lg:translate-x-0 bg-fyp-sidebar border-r border-fyp-border ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         {/* Logo */}
         <div className="p-5 flex items-center gap-3 border-b border-fyp-border">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-fyp-blue">
-            <GraduationCap size={18} color="white" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 bg-white border border-fyp-border">
+            <img src={logo} alt="Nexus Logo" className="bg-black w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-fyp-text">Nexus FYP</p>
@@ -189,11 +194,19 @@ export function Layout() {
             {config.nav.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
+              const isDashboard = item.path === "/app/student/dashboard";
+              const isDisabled = currentRole === "student" && !isDashboard && (!proposal || proposal.status !== "approved");
+
               return (
                 <button
                   key={item.path}
-                  onClick={() => { navigate(item.path); setSidebarOpen(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                  onClick={() => {
+                    if (isDisabled) return;
+                    navigate(item.path);
+                    setSidebarOpen(false);
+                  }}
+                  disabled={isDisabled}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{
                     backgroundColor: isActive ? `${config.color}15` : "transparent",
                     color: isActive ? "var(--fyp-text-primary)" : "var(--fyp-text-secondary)",
@@ -230,18 +243,18 @@ export function Layout() {
             <Menu size={20} />
           </button>
 
-          <div className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 rounded-xl bg-fyp-card border border-fyp-border">
+          {/* <div className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 rounded-xl bg-fyp-card border border-fyp-border">
             <Search size={14} className="text-fyp-text-muted" />
             <input
               placeholder="Search..."
               className="bg-transparent outline-none flex-1 text-fyp-text text-[13px]"
             />
-          </div>
+          </div> */}
 
           <div className="ml-auto flex items-center gap-3">
             {/* Notifications */}
             <div className="relative" ref={notifRef}>
-              <button 
+              <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:bg-fyp-card border border-fyp-border"
               >
@@ -325,7 +338,7 @@ export function Layout() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="p-4 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[12px] text-fyp-text-secondary">Role</span>
@@ -344,7 +357,7 @@ export function Layout() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="p-2 border-t border-fyp-border">
                     <button
                       onClick={handleLogout}

@@ -18,7 +18,11 @@ function ensureUserApproved(user) {
 }
 
 function ensureSupervisorOwnsResource(resourceCreatorId, supervisorId) {
-  if (resourceCreatorId.toString() !== supervisorId.toString()) {
+  const creatorId = resourceCreatorId && resourceCreatorId._id 
+    ? resourceCreatorId._id.toString() 
+    : (resourceCreatorId ? resourceCreatorId.toString() : null);
+    
+  if (creatorId !== supervisorId.toString()) {
     throw new AppError('You do not have permission to modify this resource', 403);
   }
 }
@@ -30,7 +34,11 @@ function ensureProposalIsPending(proposal) {
 }
 
 function ensureProposalTargetsSupervisor(proposal, supervisorId) {
-  if (!proposal.supervisorPreference || proposal.supervisorPreference.toString() !== supervisorId.toString()) {
+  const prefId = proposal.supervisorPreference && proposal.supervisorPreference._id 
+    ? proposal.supervisorPreference._id.toString() 
+    : (proposal.supervisorPreference ? proposal.supervisorPreference.toString() : null);
+    
+  if (!prefId || prefId !== supervisorId.toString()) {
     throw new AppError('This proposal is not addressed to you', 403);
   }
 }

@@ -1,0 +1,30 @@
+const { createGroup, getMyGroup, respondToGroupRequest } = require('../../../application/student/group.usecase');
+
+const postGroup = async (req, res) => {
+  try {
+    const group = await createGroup(req.user._id, req.body.memberIds);
+    res.status(201).json({ success: true, data: group });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+const getGroup = async (req, res) => {
+  try {
+    const group = await getMyGroup(req.user._id);
+    res.status(200).json({ success: true, data: group });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+const respondGroup = async (req, res) => {
+  try {
+    const group = await respondToGroupRequest(req.user._id, req.params.groupId, req.body.accept);
+    res.status(200).json({ success: true, data: group });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { postGroup, getGroup, respondGroup };

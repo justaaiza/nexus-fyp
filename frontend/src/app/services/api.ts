@@ -80,6 +80,10 @@ export const studentAPI = {
   getProposalOptions: () => request('/student/proposals/options'),
   updateProposal: (id: string, body: object) => request(`/student/proposals/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
+  getMyGroup: () => request('/student/groups/me'),
+  createGroup: (body: { memberIds: string[] }) => request('/student/groups', { method: 'POST', body: JSON.stringify(body) }),
+  respondGroup: (groupId: string, accept: boolean) => request(`/student/groups/${groupId}/respond`, { method: 'PATCH', body: JSON.stringify({ accept }) }),
+
   getMilestones: () => request('/student/milestones'),
 
   submitDeliverable: (milestoneId: string, file: File) => {

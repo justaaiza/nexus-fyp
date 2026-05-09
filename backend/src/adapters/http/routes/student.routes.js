@@ -16,6 +16,8 @@ const {
   updateStudentProfile,
 } = require('../controllers/StudentController');
 
+const { postGroup, getGroup, respondGroup } = require('../controllers/GroupController');
+
 const verifyToken = require('../middlewares/auth.middleware');
 const authorizeRoles = require('../middlewares/role.middleware');
 const checkValidationResult = require('../middlewares/express-validation.middleware');
@@ -44,6 +46,16 @@ router.get('/proposals/options', getProposalOptions);
 
 // PUT /api/student/proposals/:proposalId
 router.put('/proposals/:proposalId', updateProposal);
+
+// ── Groups ───────────────────────────────────────────────────────────────────
+// POST /api/student/groups
+router.post('/groups', postGroup);
+
+// GET /api/student/groups/me
+router.get('/groups/me', getGroup);
+
+// PATCH /api/student/groups/:groupId/respond
+router.patch('/groups/:groupId/respond', respondGroup);
 
 // ── Milestones ────────────────────────────────────────────────────────────────
 // GET /api/student/milestones

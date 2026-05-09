@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { GraduationCap, Eye, EyeOff, AlertCircle, ChevronRight } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, ChevronRight } from "lucide-react";
+import fastLogo from "../assets/fast-logo.png";
 import { useAuth } from "../context/AuthContext";
 
 export function SignupPage() {
@@ -10,11 +11,11 @@ export function SignupPage() {
   const [role, setRole] = useState("student");
   const [rollNumber, setRollNumber] = useState("");
   const [department, setDepartment] = useState("");
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const navigate = useNavigate();
   const { register } = useAuth();
 
@@ -57,8 +58,8 @@ export function SignupPage() {
       >
         <div>
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-fyp-blue">
-              <GraduationCap size={20} color="white" />
+            <div className="bg-fyp-base w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden">
+              <img src={fastLogo} alt="FAST Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="text-[15px] font-semibold text-fyp-text">Nexus FYP</p>
@@ -107,8 +108,8 @@ export function SignupPage() {
         <div className="w-full max-w-[460px] my-auto">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-fyp-blue">
-              <GraduationCap size={20} color="white" />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white overflow-hidden border border-fyp-border">
+              <img src={fastLogo} alt="FAST Logo" className="w-full h-full object-contain p-1" />
             </div>
             <div>
               <p className="text-[15px] font-semibold text-fyp-text">FAST NUCES</p>
@@ -129,7 +130,7 @@ export function SignupPage() {
                 <p className="text-[13px] text-fyp-red">{error}</p>
               </div>
             )}
-            
+
             <div>
               <label className="text-[13px] text-fyp-text-secondary block mb-1.5">
                 Full Name
@@ -157,7 +158,7 @@ export function SignupPage() {
                 className="w-full px-4 py-3 rounded-xl outline-none transition-all bg-fyp-card text-fyp-text text-sm border-[1.5px] border-fyp-border focus:border-fyp-blue"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[13px] text-fyp-text-secondary block mb-1.5">
@@ -236,7 +237,7 @@ export function SignupPage() {
               {!isLoading && <ChevronRight size={16} />}
             </button>
           </form>
-          
+
           <div className="mt-8 text-center">
             <p className="text-[13px] text-fyp-text-secondary">
               Already have an account?{" "}

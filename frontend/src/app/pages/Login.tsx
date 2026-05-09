@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { GraduationCap, Eye, EyeOff, BookOpen, Shield, Users, ChevronRight, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, BookOpen, Shield, Users, ChevronRight, RefreshCw } from "lucide-react";
+import fastLogo from "../assets/fast-logo.png";
 import { useAuth } from "../context/AuthContext";
 
 const roleFirstPaths: Record<string, string> = {
@@ -39,8 +40,8 @@ export function LoginPage() {
       >
         <div>
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-fyp-blue">
-              <GraduationCap size={20} color="white" />
+            <div className="bg-fyp-sidebar w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden">
+              <img src={fastLogo} alt="FAST Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="text-[15px] font-semibold text-fyp-text">Nexus FYP</p>
@@ -89,8 +90,8 @@ export function LoginPage() {
         <div className="w-full max-w-[460px]">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-fyp-blue">
-              <GraduationCap size={20} color="white" />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white overflow-hidden border border-fyp-border">
+              <img src={fastLogo} alt="FAST Logo" className="w-full h-full object-contain p-1" />
             </div>
             <div>
               <p className="text-[15px] font-semibold text-fyp-text">FAST NUCES</p>

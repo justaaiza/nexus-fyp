@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageSquare, Star, ChevronDown, ChevronUp, FileText, User, RefreshCw } from "lucide-react";
+import { MessageSquare, Star, ChevronDown, ChevronUp, FileText, User, RefreshCw, Lock } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { studentAPI } from "../../services/api";
@@ -36,6 +36,7 @@ function GradeCircle({ score, max }: { score: number; max: number }) {
 
 export function StudentFeedback() {
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [proposal, setProposal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -44,8 +45,12 @@ export function StudentFeedback() {
     try {
       setLoading(true);
       setError("");
-      const res = await studentAPI.getMyFeedback() as { success: boolean; data: FeedbackItem[] };
+      const [res, proposalRes] = await Promise.all([
+        studentAPI.getMyFeedback() as Promise<{ success: boolean; data: FeedbackItem[] }>,
+        studentAPI.getMyProposal().catch(() => ({ data: null })) as Promise<{ data: any }>
+      ]);
       setFeedbackItems(res.data || []);
+      setProposal(proposalRes.data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load feedback.");
     } finally {
@@ -63,6 +68,22 @@ export function StudentFeedback() {
           <p className="text-fyp-text-secondary text-sm">Loading feedback...</p>
         </div>
       </div>
+    );
+  }
+
+  if (!proposal || proposal.status !== "approved") {
+    return (
+        <div className="p-6 space-y-6 max-w-7xl mx-auto flex items-center justify-center min-h-[500px]">
+            <div className="p-10 rounded-2xl border-2 border-dashed border-fyp-border flex flex-col items-center justify-center gap-4 bg-fyp-card text-center max-w-2xl">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-fyp-blue/10">
+                    <Lock size={28} className="text-fyp-blue" />
+                </div>
+                <div>
+                    <h3 className="text-[17px] font-semibold text-fyp-text mb-1">Feedback Locked</h3>
+                    <p className="text-sm text-fyp-text-secondary">You must have an approved FYP proposal to view feedback and grades. Head over to the Dashboard to track your proposal status.</p>
+                </div>
+            </div>
+        </div>
     );
   }
 

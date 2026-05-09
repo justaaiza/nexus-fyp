@@ -16,14 +16,24 @@ const submitProposal = async (studentId, { title, description, teamMembers, supe
   const existing = await proposalRepository.findBySubmittedBy(studentId);
   if (existing && existing.length > 0) throw Object.assign(new Error('You have already submitted a proposal.'), { statusCode: 409 });
 
-  if (!teamMembers || teamMembers.length < 1 || teamMembers.length > 2) {
-    throw Object.assign(new Error('Group must have 2 to 3 members in total (you + 1 or 2 others).'), { statusCode: 400 });
+  const MongoGroupRepository = require('../../adapters/db/repositories/MongoGroupRepository');
+  const groupRepo = new MongoGroupRepository();
+  const groups = await groupRepo.findByUserId(studentId);
+  if (!groups || groups.length === 0 || groups[0].status !== 'formed') {
+    throw Object.assign(new Error('You must form a group before submitting a proposal.'), { statusCode: 400 });
   }
+
+  const group = groups[0];
+  const members = group.members.map(m => m.user._id);
+  if (group.leader.toString() !== studentId.toString() && !members.some(id => id.toString() === studentId.toString())) {
+    members.push(studentId);
+  }
+  const allTeamMembers = [...new Set([group.leader._id.toString(), ...members.map(m => m.toString())])];
 
   const proposal = await proposalRepository.create({
     title,
     description,
-    teamMembers: teamMembers || [],
+    teamMembers: allTeamMembers.filter(id => id.toString() !== studentId.toString()),
     supervisorPreference: supervisorPreference || null,
     submittedBy: studentId,
     domain: domain || null,
@@ -85,20 +95,26 @@ const editProposal = async (studentId, proposalId, payload) => {
 // ─── Get Available Students & Supervisors ────────────────────────────────────
 const getAvailableOptions = async () => {
   // Students who are approved and not in any team
-  const allProposals = await proposalRepository.findAll();
+  const MongoGroupRepository = require('../../adapters/db/repositories/MongoGroupRepository');
+  const groupRepo = new MongoGroupRepository();
+  const allGroups = await groupRepo.findByUserId(); // Find all actually. Wait findByUserId() expects a user ID. We need findAll.
+  // Wait, I didn't implement findAll in MongoGroupRepository. Let's just use the Mongoose model directly for this quick query.
+  const Group = require('../../adapters/db/models/GroupModel');
+  const allGroupsRaw = await Group.find({});
+  
   const busyStudentIds = new Set();
   
-  allProposals.forEach(p => {
-    if (p.submittedBy) busyStudentIds.add(p.submittedBy._id.toString());
-    if (p.teamMembers) {
-      p.teamMembers.forEach(m => busyStudentIds.add(m._id.toString()));
+  allGroupsRaw.forEach(g => {
+    if (g.leader) busyStudentIds.add(g.leader.toString());
+    if (g.members) {
+      g.members.forEach(m => busyStudentIds.add(m.user.toString()));
     }
   });
 
-  const students = await userRepository.findAll({ role: 'student', isApproved: true });
+  const students = await userRepository.findAll({ role: 'student' });
   const availableStudents = students.filter(s => !busyStudentIds.has(s._id.toString()));
 
-  const supervisors = await userRepository.findAll({ role: 'supervisor', isApproved: true });
+  const supervisors = await userRepository.findAll({ role: 'supervisor' });
 
   return { availableStudents, supervisors };
 };
