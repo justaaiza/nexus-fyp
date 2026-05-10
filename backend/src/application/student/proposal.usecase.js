@@ -68,17 +68,26 @@ const editProposal = async (studentId, proposalId, payload) => {
                    proposal.teamMembers.some(m => m._id.toString() === studentId.toString());
   if (!isMember) throw Object.assign(new Error('Access denied.'), { statusCode: 403 });
   
-  if (proposal.status !== 'pending') {
-    throw Object.assign(new Error('Cannot edit a proposal that is already approved or rejected.'), { statusCode: 400 });
+  if (proposal.status === 'approved') {
+    throw Object.assign(new Error('Cannot edit an approved proposal.'), { statusCode: 400 });
   }
-  
+
+  if (proposal.status !== 'pending' && proposal.status !== 'rejected') {
+    throw Object.assign(new Error('Cannot edit this proposal.'), { statusCode: 400 });
+  }
+
   if (payload.teamMembers) {
     if (payload.teamMembers.length < 1 || payload.teamMembers.length > 2) {
       throw Object.assign(new Error('Group must have 2 to 3 members in total (you + 1 or 2 others).'), { statusCode: 400 });
     }
   }
 
-  const updated = await proposalRepository.updateById(proposalId, {
+  const supervisorPref =
+    payload.supervisorPreference !== undefined && payload.supervisorPreference !== ''
+      ? payload.supervisorPreference
+      : proposal.supervisorPreference?._id || proposal.supervisorPreference || null;
+
+  const updateFields = {
     title: payload.title || proposal.title,
     description: payload.description || proposal.description,
     domain: payload.domain || proposal.domain,
@@ -86,8 +95,15 @@ const editProposal = async (studentId, proposalId, payload) => {
     repoUrl: payload.repoUrl || proposal.repoUrl,
     groupNo: payload.groupNo || proposal.groupNo,
     teamMembers: payload.teamMembers || proposal.teamMembers.map(m => m._id),
-    supervisorPreference: payload.supervisorPreference || proposal.supervisorPreference?._id || null,
-  });
+    supervisorPreference: supervisorPref,
+  };
+
+  if (proposal.status === 'rejected') {
+    updateFields.status = 'pending';
+    updateFields.rejectionReason = null;
+  }
+
+  const updated = await proposalRepository.updateById(proposalId, updateFields);
 
   return updated;
 };

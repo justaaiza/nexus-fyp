@@ -107,6 +107,7 @@ async function seedAll() {
       description: 'Submit your complete SDS document outlining architecture, DB schema, and UI wireframes.',
       deadline: milestoneDate,
       phase: 'FYP-1',
+      type: 'document',
       createdBy: supervisor._id,
       assignedTo: [student._id],
     });

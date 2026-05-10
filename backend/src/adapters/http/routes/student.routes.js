@@ -16,7 +16,7 @@ const {
   updateStudentProfile,
 } = require('../controllers/StudentController');
 
-const { postGroup, getGroup, respondGroup } = require('../controllers/GroupController');
+const { postGroup, getGroup, respondGroup, postInviteMembers } = require('../controllers/GroupController');
 
 const verifyToken = require('../middlewares/auth.middleware');
 const authorizeRoles = require('../middlewares/role.middleware');
@@ -53,6 +53,18 @@ router.post('/groups', postGroup);
 
 // GET /api/student/groups/me
 router.get('/groups/me', getGroup);
+
+// POST /api/student/groups/:groupId/invite — leader adds more invitees while forming
+router.post(
+  '/groups/:groupId/invite',
+  [
+    param('groupId').isMongoId().withMessage('Invalid group ID.'),
+    body('memberIds').isArray({ min: 1 }).withMessage('memberIds must be a non-empty array.'),
+    body('memberIds.*').isMongoId().withMessage('Invalid member ID.'),
+  ],
+  checkValidationResult,
+  postInviteMembers
+);
 
 // PATCH /api/student/groups/:groupId/respond
 router.patch('/groups/:groupId/respond', respondGroup);

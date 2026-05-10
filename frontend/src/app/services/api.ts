@@ -82,6 +82,8 @@ export const studentAPI = {
 
   getMyGroup: () => request('/student/groups/me'),
   createGroup: (body: { memberIds: string[] }) => request('/student/groups', { method: 'POST', body: JSON.stringify(body) }),
+  inviteGroupMembers: (groupId: string, body: { memberIds: string[] }) =>
+    request(`/student/groups/${groupId}/invite`, { method: 'POST', body: JSON.stringify(body) }),
   respondGroup: (groupId: string, accept: boolean) => request(`/student/groups/${groupId}/respond`, { method: 'PATCH', body: JSON.stringify({ accept }) }),
 
   getMilestones: () => request('/student/milestones'),

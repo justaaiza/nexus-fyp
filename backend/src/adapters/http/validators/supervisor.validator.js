@@ -6,6 +6,7 @@ const createMilestoneSchema = {
     description: Joi.string().trim().min(5).required(),
     deadline: Joi.date().iso().required(),
     phase: Joi.string().valid('FYP-1', 'FYP-2').required(),
+    type: Joi.string().valid('document', 'defence', 'code').required(),
     assignedTo: Joi.array().items(Joi.string().hex().length(24)).min(1).required(),
   }),
 };
@@ -16,6 +17,7 @@ const updateMilestoneSchema = {
     description: Joi.string().trim().min(5).optional(),
     deadline: Joi.date().iso().optional(),
     phase: Joi.string().valid('FYP-1', 'FYP-2').optional(),
+    type: Joi.string().valid('document', 'defence', 'code').optional(),
     assignedTo: Joi.array().items(Joi.string().hex().length(24)).min(1).optional(),
   }).min(1),
   params: Joi.object({

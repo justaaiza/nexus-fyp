@@ -20,6 +20,11 @@ const milestoneSchema = new mongoose.Schema(
       enum: ['FYP-1', 'FYP-2'],
       required: [true, 'Phase is required'],
     },
+    type: {
+      type: String,
+      enum: ['document', 'defence', 'code'],
+      required: [true, 'Type is required'],
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

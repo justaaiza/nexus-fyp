@@ -49,4 +49,56 @@ const respondToGroupRequest = async (studentId, groupId, accept) => {
   }
 };
 
-module.exports = { createGroup, getMyGroup, respondToGroupRequest };
+/** Leader invites more students while status is forming (max 2 invitees total → 3 including leader). */
+const inviteMembersToGroup = async (leaderId, groupId, memberIds) => {
+  if (!memberIds || !Array.isArray(memberIds) || memberIds.length === 0) {
+    throw Object.assign(new Error('Provide at least one student to invite.'), { statusCode: 400 });
+  }
+
+  const group = await groupRepository.findById(groupId);
+  if (!group) throw Object.assign(new Error('Group not found.'), { statusCode: 404 });
+
+  if (group.leader._id.toString() !== leaderId.toString()) {
+    throw Object.assign(new Error('Only the group leader can invite members.'), { statusCode: 403 });
+  }
+
+  if (group.status !== 'forming') {
+    throw Object.assign(new Error('You can only invite members while the group is still forming.'), { statusCode: 400 });
+  }
+
+  const existingIds = new Set(group.members.map((m) => m.user._id.toString()));
+  const leaderStr = group.leader._id.toString();
+  const uniqueNew = [...new Set(memberIds.map((id) => id.toString()))].filter((id) => id !== leaderStr);
+  const toAdd = uniqueNew.filter((id) => !existingIds.has(id));
+
+  if (toAdd.length === 0) {
+    throw Object.assign(new Error('No new members to invite.'), { statusCode: 400 });
+  }
+
+  const capacity = 2 - group.members.length;
+  if (capacity <= 0) {
+    throw Object.assign(new Error('This group already has the maximum number of members.'), { statusCode: 400 });
+  }
+  if (toAdd.length > capacity) {
+    throw Object.assign(new Error(`You can only invite up to ${capacity} more student(s).`), { statusCode: 400 });
+  }
+
+  for (const id of toAdd) {
+    const user = await userRepository.findById(id);
+    if (!user || user.role !== 'student') throw Object.assign(new Error('Invalid member ID.'), { statusCode: 400 });
+
+    const memberGroups = await groupRepository.findByUserId(id);
+    const inOtherGroup = memberGroups.some((g) => g._id.toString() !== groupId.toString());
+    if (inOtherGroup) {
+      throw Object.assign(new Error(`User ${user.name} is already in another group.`), { statusCode: 400 });
+    }
+  }
+
+  const newMembers = toAdd.map((id) => ({ user: id, status: 'pending' }));
+  group.members.push(...newMembers);
+
+  await groupRepository.updateById(groupId, { members: group.members });
+  return groupRepository.findById(groupId);
+};
+
+module.exports = { createGroup, getMyGroup, respondToGroupRequest, inviteMembersToGroup };

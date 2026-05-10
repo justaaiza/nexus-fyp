@@ -33,7 +33,10 @@ class MongoMilestoneRepository extends IMilestoneRepository {
 
   async create(milestoneData) {
     const milestone = await MilestoneModel.create(milestoneData);
-    return milestone.toObject();
+    return MilestoneModel.findById(milestone._id)
+      .populate('createdBy', 'name email')
+      .populate('assignedTo', 'name email rollNumber')
+      .lean();
   }
 
   async updateById(id, data) {

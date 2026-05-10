@@ -43,7 +43,7 @@ const getProposal = async (req, res) => {
 // ── Milestones ────────────────────────────────────────────────────────────────
 const listMilestones = async (req, res) => {
   try {
-    const milestones = await getMilestones();
+    const milestones = await getMilestones(req.user._id);
     res.status(200).json({ success: true, data: milestones });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, message: err.message });

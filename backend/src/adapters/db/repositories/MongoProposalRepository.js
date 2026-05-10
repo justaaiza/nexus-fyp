@@ -31,6 +31,7 @@ class MongoProposalRepository extends IProposalRepository {
     return ProposalModel.find({ submittedBy: userId })
       .populate('teamMembers', 'name email rollNumber')
       .populate('supervisorPreference', 'name email department')
+      .populate('submittedBy', 'name email rollNumber')
       .lean();
   }
 

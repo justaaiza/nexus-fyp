@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users2, Plus, ChevronRight, CheckCircle2, Calendar, Trash2, RefreshCw } from "lucide-react";
+import { Users2, Plus, ChevronRight, CheckCircle2, Calendar, Trash2, RefreshCw, Pencil } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
 import { Modal } from "../../components/Modal";
@@ -14,6 +14,20 @@ type Panel = {
   defenseDate?: string;
   room?: string;
 };
+
+function toDatetimeLocalValue(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function groupTakenElsewhere(panels: Panel[], groupId: string, exceptPanelId?: string): boolean {
+  return panels.some(
+    (pan) => pan._id !== exceptPanelId && pan.assignedGroups.some((g) => g._id === groupId)
+  );
+}
 
 export function AdminPanels() {
   const [panels, setPanels] = useState<Panel[]>([]);
@@ -31,6 +45,14 @@ export function AdminPanels() {
 
   const [juryUsers, setJuryUsers] = useState<{ _id: string; name: string; email: string; department?: string }[]>([]);
   const [proposals, setProposals] = useState<{ _id: string; title: string; groupNo?: string }[]>([]);
+  const [editPanel, setEditPanel] = useState<{
+    id: string;
+    name: string;
+    juryMemberIds: string[];
+    assignedGroupIds: string[];
+    defenseDate: string;
+    room: string;
+  } | null>(null);
 
   const fetchPanels = async () => {
     try {
@@ -87,7 +109,48 @@ export function AdminPanels() {
     }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editPanel || editPanel.juryMemberIds.length < 3 || editPanel.assignedGroupIds.length === 0 || !editPanel.name.trim()) return;
+    try {
+      setSubmitting(true);
+      const res = await adminAPI.updatePanel(editPanel.id, {
+        name: editPanel.name.trim(),
+        juryMembers: editPanel.juryMemberIds,
+        assignedGroups: editPanel.assignedGroupIds,
+        defenseDate: editPanel.defenseDate || null,
+        room: editPanel.room?.trim() || null,
+      }) as { success: boolean; data: Panel };
+      setPanels((prev) => prev.map((p) => (p._id === editPanel.id ? res.data : p)));
+      setEditPanel(null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to update panel.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openEdit = (panel: Panel) => {
+    setEditPanel({
+      id: panel._id,
+      name: panel.name,
+      juryMemberIds: panel.juryMembers.map((j) => j._id),
+      assignedGroupIds: panel.assignedGroups.map((g) => g._id),
+      defenseDate: toDatetimeLocalValue(panel.defenseDate),
+      room: panel.room || "",
+    });
+  };
+
+  const proposalsForCreate = proposals.filter((p) => !groupTakenElsewhere(panels, p._id));
+
   const assignedGroupIds = panels.flatMap((p) => p.assignedGroups.map((g) => g._id));
+
+  const proposalsForEdit = editPanel
+    ? proposals.filter(
+        (p) =>
+          !groupTakenElsewhere(panels, p._id, editPanel.id) ||
+          editPanel.assignedGroupIds.includes(p._id)
+      )
+    : [];
 
   if (loading) {
     return (
@@ -149,9 +212,14 @@ export function AdminPanels() {
                       <p className="text-xs text-fyp-text-muted">{panel.room || "No room"}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(panel._id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-950/30 transition-all" title="Delete">
-                    <Trash2 size={13} className="text-fyp-red" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => openEdit(panel)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-fyp-blue/10 transition-all" title="Edit panel">
+                      <Pencil size={13} className="text-fyp-blue" />
+                    </button>
+                    <button type="button" onClick={() => handleDelete(panel._id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-950/30 transition-all" title="Delete">
+                      <Trash2 size={13} className="text-fyp-red" />
+                    </button>
+                  </div>
                 </div>
 
                 {panel.defenseDate && (
@@ -220,13 +288,13 @@ export function AdminPanels() {
           <div>
             <label className="text-[13px] text-fyp-text-secondary block mb-2">Select Approved Groups</label>
             <div className="space-y-2 max-h-36 overflow-y-auto">
-              {proposals.filter((p) => !assignedGroupIds.includes(p._id)).map((g) => (
+              {proposalsForCreate.map((g) => (
                 <label key={g._id} className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer bg-fyp-elevated">
                   <input type="checkbox" checked={newPanel.assignedGroupIds.includes(g._id)} onChange={() => setNewPanel((p) => ({ ...p, assignedGroupIds: toggleItem(p.assignedGroupIds, g._id) }))} />
                   <span className="text-[13px] text-fyp-text">{g.groupNo || "—"} — {g.title}</span>
                 </label>
               ))}
-              {proposals.filter((p) => !assignedGroupIds.includes(p._id)).length === 0 && (
+              {proposalsForCreate.length === 0 && (
                 <p className="text-[13px] text-fyp-text-muted text-center py-4">No unassigned approved groups</p>
               )}
             </div>
@@ -260,6 +328,123 @@ export function AdminPanels() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit Panel Modal */}
+      <Modal
+        open={editPanel !== null}
+        onClose={() => !submitting && setEditPanel(null)}
+        title="Edit Panel"
+        maxWidth="max-w-xl"
+        footer={
+          <>
+            <button type="button" onClick={() => setEditPanel(null)} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border disabled:opacity-50">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={
+                submitting ||
+                !editPanel ||
+                editPanel.juryMemberIds.length < 3 ||
+                editPanel.assignedGroupIds.length === 0 ||
+                !editPanel.name.trim()
+              }
+              className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-amber text-[#0d1117] font-semibold disabled:opacity-50"
+            >
+              {submitting ? "Saving..." : "Save changes"}
+            </button>
+          </>
+        }
+      >
+        {editPanel && (
+          <div className="space-y-5">
+            <div>
+              <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Panel Name *</label>
+              <input
+                value={editPanel.name}
+                onChange={(e) => setEditPanel({ ...editPanel, name: e.target.value })}
+                placeholder="e.g. Panel A"
+                className="w-full px-4 py-2.5 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]"
+              />
+            </div>
+            <div>
+              <label className="text-[13px] text-fyp-text-secondary block mb-2">Assigned Groups</label>
+              <div className="space-y-2 max-h-36 overflow-y-auto">
+                {proposalsForEdit.map((g) => (
+                  <label key={g._id} className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer bg-fyp-elevated">
+                    <input
+                      type="checkbox"
+                      checked={editPanel.assignedGroupIds.includes(g._id)}
+                      onChange={() =>
+                        setEditPanel((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                assignedGroupIds: toggleItem(prev.assignedGroupIds, g._id),
+                              }
+                            : prev
+                        )
+                      }
+                    />
+                    <span className="text-[13px] text-fyp-text">
+                      {g.groupNo || "—"} — {g.title}
+                    </span>
+                  </label>
+                ))}
+                {proposalsForEdit.length === 0 && (
+                  <p className="text-[13px] text-fyp-text-muted text-center py-4">No groups available</p>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="text-[13px] text-fyp-text-secondary block mb-2">Jury Members (min 3)</label>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {juryUsers.map((j) => (
+                  <label key={j._id} className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer bg-fyp-elevated">
+                    <input
+                      type="checkbox"
+                      checked={editPanel.juryMemberIds.includes(j._id)}
+                      onChange={() =>
+                        setEditPanel((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                juryMemberIds: toggleItem(prev.juryMemberIds, j._id),
+                              }
+                            : prev
+                        )
+                      }
+                    />
+                    <span className="text-[13px] text-fyp-text">{j.name}</span>
+                    <span className="text-[11px] text-fyp-text-muted ml-auto">{j.department || j.email}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Defense Date/Slot</label>
+                <input
+                  type="datetime-local"
+                  value={editPanel.defenseDate}
+                  onChange={(e) => setEditPanel({ ...editPanel, defenseDate: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Room</label>
+                <input
+                  value={editPanel.room}
+                  onChange={(e) => setEditPanel({ ...editPanel, room: e.target.value })}
+                  placeholder="e.g. CR-103"
+                  className="w-full px-3 py-2.5 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px]"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -53,7 +53,13 @@ class MongoPanelRepository extends IPanelRepository {
   async updateById(id, data) {
     return PanelModel.findByIdAndUpdate(id, data, { new: true, runValidators: true })
       .populate('juryMembers', 'name email department')
-      .populate('assignedGroups')
+      .populate({
+        path: 'assignedGroups',
+        populate: [
+          { path: 'teamMembers', select: 'name email rollNumber' },
+          { path: 'submittedBy', select: 'name email rollNumber' },
+        ],
+      })
       .lean();
   }
 

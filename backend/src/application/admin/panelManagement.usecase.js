@@ -29,6 +29,11 @@ const updatePanel = async (panelId, data) => {
     if (!sizeCheck.valid) throw Object.assign(new Error(sizeCheck.reason), { statusCode: 400 });
   }
 
+  if (data.assignedGroups) {
+    const groupCheck = validatePanelGroups(data.assignedGroups);
+    if (!groupCheck.valid) throw Object.assign(new Error(groupCheck.reason), { statusCode: 400 });
+  }
+
   return panelRepository.updateById(panelId, data);
 };
 

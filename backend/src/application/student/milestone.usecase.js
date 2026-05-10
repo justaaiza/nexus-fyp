@@ -7,8 +7,8 @@ const { canStudentSubmitToMilestone } = require('../../domain/rules/eligibility'
 const MilestoneEntity = require('../../domain/entities/Milestone');
 
 // ─── Get All Milestones (student view) ───────────────────────────────────────
-const getMilestones = async () => {
-  return milestoneRepository.findAll({});
+const getMilestones = async (studentId) => {
+  return milestoneRepository.findByAssignedTo(studentId);
 };
 
 // ─── Submit Deliverable Against a Milestone ───────────────────────────────────

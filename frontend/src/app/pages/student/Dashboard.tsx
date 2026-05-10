@@ -18,6 +18,8 @@ type Proposal = {
   status: ProposalStatus;
   techStack?: string[];
   repoUrl?: string;
+  /** Populated author; teamMembers on the proposal only lists other members (not submitter). */
+  submittedBy?: { _id: string; name: string; email: string; rollNumber?: string };
   teamMembers?: { _id: string; name: string; rollNumber?: string }[];
   supervisorPreference?: { _id: string; name: string; email: string };
 };
@@ -72,6 +74,8 @@ export function StudentDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showMemberModal, setShowMemberModal] = useState(false);
+  /** 'create' = new group; 'invite' = leader adding more students to a forming group */
+  const [memberModalMode, setMemberModalMode] = useState<"create" | "invite">("create");
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -114,19 +118,24 @@ export function StudentDashboard() {
 
   useEffect(() => { fetchDashboardData(); }, []);
 
-  const handleCreateGroup = async () => {
+  const handleSaveGroupMembers = async () => {
     if (selectedGroupMembers.length === 0) {
       alert("Please select at least 1 team member.");
       return;
     }
     try {
       setGroupSubmitting(true);
-      const res = await studentAPI.createGroup({ memberIds: selectedGroupMembers }) as { success: boolean; data: Group };
-      setGroup(res.data);
+      if (memberModalMode === "invite" && group) {
+        const res = await studentAPI.inviteGroupMembers(group._id, { memberIds: selectedGroupMembers }) as { success: boolean; data: Group };
+        setGroup(res.data);
+      } else {
+        const res = await studentAPI.createGroup({ memberIds: selectedGroupMembers }) as { success: boolean; data: Group };
+        setGroup(res.data);
+      }
       setShowMemberModal(false);
       setSelectedGroupMembers([]);
     } catch (err: any) {
-      alert(err.message || "Failed to create group.");
+      alert(err.message || (memberModalMode === "invite" ? "Failed to send invites." : "Failed to create group."));
     } finally {
       setGroupSubmitting(false);
     }
@@ -148,6 +157,10 @@ export function StudentDashboard() {
   const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.description) return;
+    if (proposal?.status === "rejected" && !form.supervisorPreference) {
+      alert("Select a supervisor to send your proposal to (you can choose a different one than before).");
+      return;
+    }
     try {
       setSubmitting(true);
       let res;
@@ -176,10 +189,22 @@ export function StudentDashboard() {
     );
   }
 
-  const filteredStudents = options.availableStudents.filter(s => 
-    s._id !== user?._id && (s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.rollNumber && s.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())))
+  const idsAlreadyInGroup =
+    memberModalMode === "invite" && group?.members?.length
+      ? new Set(group.members.map((m) => String(m.user._id)))
+      : new Set<string>();
+
+  const maxSelectableMembers =
+    memberModalMode === "invite" && group?.members
+      ? Math.max(0, 2 - group.members.length)
+      : 2;
+
+  const filteredStudents = options.availableStudents.filter((s) =>
+    s._id !== user?._id &&
+    !idsAlreadyInGroup.has(String(s._id)) &&
+    (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.rollNumber && s.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 
   const filteredSupervisors = options.supervisors.filter(s =>
@@ -208,7 +233,12 @@ export function StudentDashboard() {
               <p className="text-sm text-fyp-text-secondary">Invite 1 or 2 other students to form your group. Once everyone accepts, you can submit a proposal.</p>
             </div>
             <button
-              onClick={() => { setSearchQuery(""); setShowMemberModal(true); }}
+              onClick={() => {
+                setMemberModalMode("create");
+                setSearchQuery("");
+                setSelectedGroupMembers([]);
+                setShowMemberModal(true);
+              }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fyp-blue text-white text-sm font-semibold hover:opacity-90 transition-all"
             >
               <Users size={15} /> Form Group
@@ -271,14 +301,40 @@ export function StudentDashboard() {
             )}
             
             {isLeader && (
-              <p className="text-sm text-fyp-text-secondary text-center mt-4">
-                Waiting for all members to accept the group request...
-              </p>
+              <div className="space-y-3 mt-4 pt-4 border-t border-fyp-border">
+                <p className="text-sm text-fyp-text-secondary text-center">
+                  Waiting for all members to accept the group request...
+                </p>
+                {group.members.length < 2 && (
+                  <button
+                    type="button"
+                    disabled={groupSubmitting}
+                    onClick={() => {
+                      setMemberModalMode("invite");
+                      setSearchQuery("");
+                      setSelectedGroupMembers([]);
+                      setShowMemberModal(true);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text font-semibold border border-fyp-border hover:bg-fyp-border/40 disabled:opacity-50 transition-all"
+                  >
+                    <Users size={15} /> Invite another student (up to {2 - group.members.length} more)
+                  </button>
+                )}
+              </div>
             )}
           </Card>
         )}
 
-        <Modal open={showMemberModal} onClose={() => setShowMemberModal(false)} title="Select Team Members" subtitle="Choose 1 or 2 other students for your group.">
+        <Modal
+          open={showMemberModal}
+          onClose={() => setShowMemberModal(false)}
+          title={memberModalMode === "invite" ? "Invite more team members" : "Select Team Members"}
+          subtitle={
+            memberModalMode === "invite" && group
+              ? `You can invite up to ${maxSelectableMembers} more student${maxSelectableMembers === 1 ? "" : "s"} (max 3 people including you).`
+              : "Choose 1 or 2 other students for your group."
+          }
+        >
           <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl bg-fyp-elevated border border-fyp-border">
             <Search size={14} className="text-fyp-text-muted" />
             <input placeholder="Search by name, email or roll number..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent outline-none flex-1 text-fyp-text text-[13px]" />
@@ -293,10 +349,10 @@ export function StudentDashboard() {
                 <button type="button" onClick={() => {
                   if (selectedGroupMembers.includes(s._id)) {
                     setSelectedGroupMembers(selectedGroupMembers.filter(id => id !== s._id));
-                  } else if (selectedGroupMembers.length < 2) {
+                  } else if (selectedGroupMembers.length < maxSelectableMembers) {
                     setSelectedGroupMembers([...selectedGroupMembers, s._id]);
                   } else {
-                    alert("You can select up to 2 team members only.");
+                    alert(`You can select up to ${maxSelectableMembers} student${maxSelectableMembers === 1 ? "" : "s"} here.`);
                   }
                 }} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${selectedGroupMembers.includes(s._id) ? 'bg-fyp-red text-white' : 'bg-fyp-blue text-white'}`}>
                   {selectedGroupMembers.includes(s._id) ? 'Remove' : 'Select'}
@@ -307,8 +363,8 @@ export function StudentDashboard() {
           </div>
           <div className="mt-4 flex justify-end gap-3">
              <button onClick={() => setShowMemberModal(false)} className="px-5 py-2.5 rounded-xl text-sm text-fyp-text-secondary">Cancel</button>
-             <button onClick={handleCreateGroup} disabled={groupSubmitting} className="px-5 py-2.5 rounded-xl bg-fyp-blue text-white text-sm font-semibold disabled:opacity-50">
-               {groupSubmitting ? "Sending..." : "Send Request"}
+             <button onClick={handleSaveGroupMembers} disabled={groupSubmitting} className="px-5 py-2.5 rounded-xl bg-fyp-blue text-white text-sm font-semibold disabled:opacity-50">
+               {groupSubmitting ? "Sending..." : memberModalMode === "invite" ? "Send invites" : "Send Request"}
              </button>
           </div>
         </Modal>
@@ -346,11 +402,22 @@ export function StudentDashboard() {
   }
 
   if (showForm) {
+    const isRejectedResubmit = proposal?.status === "rejected";
     return (
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        <PageHeader title="Proposal Dashboard" subtitle="Step 2: FYP Proposal" />
+        <PageHeader
+          title="Proposal Dashboard"
+          subtitle={isRejectedResubmit ? "Resubmit — choose a supervisor and update your proposal" : "Step 2: FYP Proposal"}
+        />
         <div className="p-8 rounded-2xl bg-fyp-card border border-fyp-border max-w-3xl mx-auto w-full shadow-sm">
-          <h3 className="text-[18px] font-semibold text-fyp-text mb-6">{proposal ? "Edit FYP Proposal" : "Submit FYP Proposal"}</h3>
+          <h3 className={`text-[18px] font-semibold text-fyp-text ${isRejectedResubmit ? "mb-2" : "mb-6"}`}>
+            {isRejectedResubmit ? "Resubmit to another supervisor" : proposal ? "Edit FYP Proposal" : "Submit FYP Proposal"}
+          </h3>
+          {isRejectedResubmit && (
+            <p className="text-[13px] text-fyp-text-secondary mb-6">
+              Update your details below and select which supervisor should receive your request. Saving will set your proposal back to pending for review.
+            </p>
+          )}
           <form onSubmit={handleSubmitProposal} className="space-y-4">
             <div>
               <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Project Title *</label>
@@ -380,7 +447,14 @@ export function StudentDashboard() {
             </div>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="text-[13px] text-fyp-text-secondary block mb-1.5">Supervisor Preference *</label>
+                <label className="text-[13px] text-fyp-text-secondary block mb-1.5">
+                  Supervisor Preference *
+                  {isRejectedResubmit && (
+                    <span className="block text-[12px] text-fyp-text-muted font-normal mt-0.5">
+                      Pick any eligible supervisor — usually someone different from the one who declined.
+                    </span>
+                  )}
+                </label>
                 <button type="button" onClick={() => { setSearchQuery(""); setShowSupervisorModal(true); }}
                   className="w-full px-4 py-3 rounded-xl outline-none bg-fyp-elevated border border-fyp-border text-fyp-text text-[13px] text-left">
                   {form.supervisorPreference ? options.supervisors.find((s: any) => s._id === form.supervisorPreference)?.name || "Selected" : "Select Supervisor"}
@@ -390,13 +464,13 @@ export function StudentDashboard() {
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => { if(proposal) setShowForm(false); }} disabled={!proposal} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border disabled:opacity-50">Cancel</button>
               <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-blue text-white font-semibold hover:opacity-90 disabled:opacity-60">
-                {submitting ? "Submitting..." : "Submit Proposal"}
+                {submitting ? "Submitting..." : isRejectedResubmit ? "Resubmit proposal" : "Submit Proposal"}
               </button>
             </div>
           </form>
         </div>
 
-        <Modal open={showSupervisorModal} onClose={() => setShowSupervisorModal(false)} title="Select Supervisor" subtitle="Choose your preferred supervisor.">
+        <Modal open={showSupervisorModal} onClose={() => setShowSupervisorModal(false)} title="Select Supervisor" subtitle={proposal?.status === "rejected" ? "Choose the supervisor who will receive this request." : "Choose your preferred supervisor."}>
           <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl bg-fyp-elevated border border-fyp-border">
             <Search size={14} className="text-fyp-text-muted" />
             <input placeholder="Search supervisor by name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent outline-none flex-1 text-fyp-text text-[13px]" />
@@ -426,7 +500,13 @@ export function StudentDashboard() {
   if (!proposal) return null;
 
   const statusColor = statusColorMap[proposal.status] || "#f59e0b";
-  const teamMembers = proposal.teamMembers || [];
+  const others = proposal.teamMembers || [];
+  /** Backend stores only non-submitter IDs in teamMembers; total headcount includes submitter. */
+  const teamSize = Math.max(1, 1 + others.length);
+  const submitter = proposal.submittedBy;
+  const roster = submitter
+    ? [submitter, ...others.filter((m) => String(m._id) !== String(submitter._id))]
+    : others;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -434,7 +514,7 @@ export function StudentDashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Proposal Status" value={proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)} icon={CheckCircle2} color={statusColor} />
-        <StatCard label="Team Size" value={teamMembers.length.toString() || "1"} icon={Users} color="#3b7fe8" />
+        <StatCard label="Team Size" value={String(teamSize)} icon={Users} color="#3b7fe8" />
         <StatCard label="Domain" value={proposal.domain || "—"} icon={TrendingUp} color="#8b5cf6" />
         <StatCard label="Group No." value={proposal.groupNo || "—"} icon={Calendar} color="#f59e0b" />
       </div>
@@ -483,20 +563,25 @@ export function StudentDashboard() {
             </div>
           )}
 
-          {teamMembers.length > 0 && (
+          {roster.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Users size={14} className="text-fyp-text-muted" />
                 <span className="text-[13px] text-fyp-text-secondary">Team Members</span>
               </div>
               <div className="space-y-2">
-                {teamMembers.map((member) => (
+                {roster.map((member) => (
                   <div key={member._id} className="flex items-center gap-3 p-3 rounded-xl bg-fyp-elevated border border-fyp-border">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-fyp-blue/20 text-fyp-blue text-[11px] font-semibold">
                       {member.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-fyp-text">{member.name}</p>
+                      <p className="text-[13px] font-medium text-fyp-text">
+                        {member.name}
+                        {submitter && String(member._id) === String(submitter._id) && (
+                          <span className="text-[11px] text-fyp-text-muted font-normal ml-2">(submitter)</span>
+                        )}
+                      </p>
                       <p className="text-xs text-fyp-text-muted">{member.rollNumber || "—"}</p>
                     </div>
                   </div>
@@ -520,7 +605,7 @@ export function StudentDashboard() {
               <p className="text-[12px] text-fyp-text-muted mt-1">
                 {proposal.status === "pending" && "Awaiting coordinator review."}
                 {proposal.status === "approved" && "Your proposal has been approved!"}
-                {proposal.status === "rejected" && "Your proposal was rejected."}
+                {proposal.status === "rejected" && "Update your work, pick another supervisor if needed, and resubmit — your request will return to pending."}
               </p>
             </div>
             {proposal.status !== "approved" && (
