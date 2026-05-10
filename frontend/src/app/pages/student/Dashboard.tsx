@@ -98,8 +98,8 @@ export function StudentDashboard() {
         }
       }
 
-      // If we have a group and it's formed, fetch proposal
-      if (myGroup && myGroup.status === 'formed') {
+      // Fetch proposal if group exists (even while forming, leader can submit)
+      if (myGroup) {
         try {
           const propRes = await studentAPI.getMyProposal() as { success: boolean; data: Proposal };
           setProposal(propRes.data);
@@ -212,8 +212,8 @@ export function StudentDashboard() {
     s.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Group Formation UI
-  if (!group || group.status === 'forming') {
+  // Group Formation UI — skip if leader has opened the proposal form
+  if ((!group || group.status === 'forming') && !showForm) {
     const isLeader = group?.leader._id === user?._id;
     const myMemberRecord = group?.members.find(m => m.user._id === user?._id);
 
@@ -302,23 +302,63 @@ export function StudentDashboard() {
             
             {isLeader && (
               <div className="space-y-3 mt-4 pt-4 border-t border-fyp-border">
-                <p className="text-sm text-fyp-text-secondary text-center">
-                  Waiting for all members to accept the group request...
-                </p>
-                {group.members.length < 2 && (
-                  <button
-                    type="button"
-                    disabled={groupSubmitting}
-                    onClick={() => {
-                      setMemberModalMode("invite");
-                      setSearchQuery("");
-                      setSelectedGroupMembers([]);
-                      setShowMemberModal(true);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text font-semibold border border-fyp-border hover:bg-fyp-border/40 disabled:opacity-50 transition-all"
-                  >
-                    <Users size={15} /> Invite another student (up to {2 - group.members.length} more)
-                  </button>
+                {group.members.length === 0 ? (
+                  // Only leader — no one invited yet, show invite only
+                  <>
+                    <p className="text-sm text-fyp-text-secondary text-center">
+                      Waiting for all members to accept the group request...
+                    </p>
+                    <button
+                      type="button"
+                      disabled={groupSubmitting}
+                      onClick={() => {
+                        setMemberModalMode("invite");
+                        setSearchQuery("");
+                        setSelectedGroupMembers([]);
+                        setShowMemberModal(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text font-semibold border border-fyp-border hover:bg-fyp-border/40 disabled:opacity-50 transition-all"
+                    >
+                      <Users size={15} /> Invite another student (up to 2 more)
+                    </button>
+                  </>
+                ) : (
+                  // 2+ people total — show submit proposal; show invite if < 3 people total
+                  <>
+                    <p className="text-sm text-fyp-text-secondary text-center">
+                      Your group has {group.members.length + 1} members. You can submit a proposal now.
+                    </p>
+                    {!proposal && (
+                      <button
+                        type="button"
+                        onClick={() => setShowForm(true)}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm bg-fyp-blue text-white font-semibold hover:opacity-90 transition-all"
+                      >
+                        <Upload size={15} /> Submit Proposal
+                      </button>
+                    )}
+                    {proposal && (
+                      <div className="p-3 rounded-xl bg-fyp-green/10 border border-fyp-green/30 text-center">
+                        <p className="text-sm text-fyp-green font-medium">Proposal submitted ✓</p>
+                        <p className="text-xs text-fyp-text-muted mt-0.5 capitalize">Status: {proposal.status}</p>
+                      </div>
+                    )}
+                    {group.members.length < 2 && (
+                      <button
+                        type="button"
+                        disabled={groupSubmitting}
+                        onClick={() => {
+                          setMemberModalMode("invite");
+                          setSearchQuery("");
+                          setSelectedGroupMembers([]);
+                          setShowMemberModal(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text font-semibold border border-fyp-border hover:bg-fyp-border/40 disabled:opacity-50 transition-all"
+                      >
+                        <Users size={15} /> Invite another student (1 more slot available)
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -388,7 +428,7 @@ export function StudentDashboard() {
           </div>
           <div className="text-center">
             <h3 className="text-[17px] font-semibold text-fyp-text mb-1">Group Formed Successfully</h3>
-            <p className="text-sm text-fyp-text-secondary">Your team is ready. Any member can now submit the FYP proposal.</p>
+            <p className="text-sm text-fyp-text-secondary">Your team is ready. The group leader can now submit the FYP proposal.</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
@@ -396,7 +436,61 @@ export function StudentDashboard() {
           >
             <Upload size={15} /> Submit Proposal
           </button>
+          {group && group.members.length < 2 && (
+            <button
+              type="button"
+              onClick={() => {
+                setMemberModalMode("invite");
+                setSearchQuery("");
+                setSelectedGroupMembers([]);
+                setShowMemberModal(true);
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fyp-elevated text-fyp-text text-sm font-semibold border border-fyp-border hover:bg-fyp-border/40 transition-all"
+            >
+              <Users size={15} /> Invite a 3rd Member (optional)
+            </button>
+          )}
         </div>
+
+        <Modal
+          open={showMemberModal}
+          onClose={() => setShowMemberModal(false)}
+          title="Invite a Team Member"
+          subtitle="You can add 1 more student to your group (max 3 total)."
+        >
+          <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl bg-fyp-elevated border border-fyp-border">
+            <Search size={14} className="text-fyp-text-muted" />
+            <input placeholder="Search by name, email or roll number..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent outline-none flex-1 text-fyp-text text-[13px]" />
+          </div>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {filteredStudents.map((s: any) => (
+              <div key={s._id} className="flex items-center justify-between p-3 rounded-xl bg-fyp-elevated border border-fyp-border">
+                <div>
+                  <p className="text-[13px] font-medium text-fyp-text">{s.name}</p>
+                  <p className="text-xs text-fyp-text-muted">{s.email} {s.rollNumber ? `· ${s.rollNumber}` : ''}</p>
+                </div>
+                <button type="button" onClick={() => {
+                  if (selectedGroupMembers.includes(s._id)) {
+                    setSelectedGroupMembers(selectedGroupMembers.filter(id => id !== s._id));
+                  } else if (selectedGroupMembers.length < 1) {
+                    setSelectedGroupMembers([...selectedGroupMembers, s._id]);
+                  } else {
+                    alert("You can only add 1 more member.");
+                  }
+                }} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${selectedGroupMembers.includes(s._id) ? 'bg-fyp-red text-white' : 'bg-fyp-blue text-white'}`}>
+                  {selectedGroupMembers.includes(s._id) ? 'Remove' : 'Select'}
+                </button>
+              </div>
+            ))}
+            {filteredStudents.length === 0 && <p className="text-[13px] text-fyp-text-muted text-center py-4">No available students found.</p>}
+          </div>
+          <div className="mt-4 flex justify-end gap-3">
+            <button onClick={() => setShowMemberModal(false)} className="px-5 py-2.5 rounded-xl text-sm text-fyp-text-secondary">Cancel</button>
+            <button onClick={handleSaveGroupMembers} disabled={groupSubmitting || selectedGroupMembers.length === 0} className="px-5 py-2.5 rounded-xl bg-fyp-blue text-white text-sm font-semibold disabled:opacity-50">
+              {groupSubmitting ? "Sending..." : "Send Invite"}
+            </button>
+          </div>
+        </Modal>
       </div>
     );
   }
@@ -462,7 +556,7 @@ export function StudentDashboard() {
               </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => { if(proposal) setShowForm(false); }} disabled={!proposal} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border disabled:opacity-50">Cancel</button>
+              <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
               <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-blue text-white font-semibold hover:opacity-90 disabled:opacity-60">
                 {submitting ? "Submitting..." : isRejectedResubmit ? "Resubmit proposal" : "Submit Proposal"}
               </button>

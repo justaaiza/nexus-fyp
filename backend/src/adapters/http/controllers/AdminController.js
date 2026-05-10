@@ -48,7 +48,31 @@ const getProposals = async (req, res) => {
   try {
     const filters = {};
     if (req.query.status) filters.status = req.query.status;
-    const proposals = await listProposals(filters);
+    let proposals = await listProposals(filters);
+
+    if (req.query.defenseReady === 'true') {
+      const MongoMilestoneRepository = require('../../../adapters/db/repositories/MongoMilestoneRepository');
+      const milestoneRepo = new MongoMilestoneRepository();
+      const defenseMilestones = await milestoneRepo.findAll({ type: 'defence' });
+      
+      const defenseStudentIds = new Set();
+      defenseMilestones.forEach(m => {
+        if (m.assignedTo) {
+          m.assignedTo.forEach(student => {
+            defenseStudentIds.add(student._id ? student._id.toString() : student.toString());
+          });
+        }
+      });
+      
+      proposals = proposals.filter(p => {
+        const memberIds = [
+          p.submittedBy?._id ? p.submittedBy._id.toString() : p.submittedBy?.toString(),
+          ...(p.teamMembers || []).map(m => m._id ? m._id.toString() : m.toString())
+        ].filter(Boolean);
+        return memberIds.some(id => defenseStudentIds.has(id));
+      });
+    }
+
     res.status(200).json({ success: true, data: proposals });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, message: err.message });

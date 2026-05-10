@@ -125,8 +125,13 @@ export const adminAPI = {
   deleteUser: (id: string) =>
     request(`/admin/users/${id}`, { method: 'DELETE' }),
 
-  getProposals: (status?: string) =>
-    request(`/admin/proposals${status ? `?status=${status}` : ''}`),
+  getProposals: (status?: string, defenseReady?: boolean) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (defenseReady) params.append('defenseReady', 'true');
+    const qs = params.toString();
+    return request(`/admin/proposals${qs ? `?${qs}` : ''}`);
+  },
 
   approveProposal: (id: string) =>
     request(`/admin/proposals/${id}/approve`, { method: 'PATCH' }),

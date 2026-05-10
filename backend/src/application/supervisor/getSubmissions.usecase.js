@@ -9,6 +9,11 @@ async function getSubmissions(proposalRepo, submissionRepo, supervisorId) {
 
   const studentIds = new Set();
   for (const proposal of approvedProposals) {
+    // Include the submitter (group leader)
+    if (proposal.submittedBy) {
+      studentIds.add((proposal.submittedBy._id || proposal.submittedBy).toString());
+    }
+    // Include all team members
     for (const member of proposal.teamMembers) {
       studentIds.add((member._id || member).toString());
     }

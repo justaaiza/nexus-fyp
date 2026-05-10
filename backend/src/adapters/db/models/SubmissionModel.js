@@ -16,9 +16,17 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: [true, 'File URL is required'],
     },
+    fileName: {
+      type: String,
+      default: '',
+    },
+    fileSize: {
+      type: Number,
+      default: 0,
+    },
     fileType: {
       type: String,
-      enum: ['pdf', 'zip'],
+      enum: ['pdf', 'zip', 'mp4'],
       required: [true, 'File type is required'],
     },
     submittedAt: {

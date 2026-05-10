@@ -61,7 +61,7 @@ export function AdminPanels() {
       const [panelsRes, juryRes, proposalsRes] = await Promise.all([
         adminAPI.getPanels() as Promise<{ success: boolean; data: Panel[] }>,
         adminAPI.getUsers("jury") as Promise<{ success: boolean; data: { _id: string; name: string; email: string; department?: string; isApproved: boolean }[] }>,
-        adminAPI.getProposals("approved") as Promise<{ success: boolean; data: { _id: string; title: string; groupNo?: string }[] }>,
+        adminAPI.getProposals("approved", true) as Promise<{ success: boolean; data: { _id: string; title: string; groupNo?: string }[] }>,
       ]);
       setPanels(panelsRes.data || []);
       setJuryUsers((juryRes.data || []).filter((u) => u.isApproved));

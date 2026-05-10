@@ -11,7 +11,15 @@ async function getGroupSubmissions(proposalRepo, submissionRepo, groupId) {
     throw new AppError('Student group (proposal) not found.', 404);
   }
 
-  const studentIds = proposal.teamMembers.map((m) => (m._id || m).toString());
+  const studentIds = [];
+  // Include the submitter (group leader)
+  if (proposal.submittedBy) {
+    studentIds.push((proposal.submittedBy._id || proposal.submittedBy).toString());
+  }
+  // Include all team members
+  for (const member of proposal.teamMembers) {
+    studentIds.push((member._id || member).toString());
+  }
   if (studentIds.length === 0) {
     return [];
   }
