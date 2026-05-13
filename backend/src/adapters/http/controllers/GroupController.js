@@ -1,4 +1,4 @@
-const { createGroup, getMyGroup, respondToGroupRequest, inviteMembersToGroup } = require('../../../application/student/group.usecase');
+const { createGroup, getMyGroup, respondToGroupRequest, inviteMembersToGroup, unsendInvite } = require('../../../application/student/group.usecase');
 
 const postGroup = async (req, res) => {
   try {
@@ -35,5 +35,13 @@ const postInviteMembers = async (req, res) => {
     res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
+const deleteInvite = async (req, res) => {
+  try {
+    const group = await unsendInvite(req.user._id, req.params.groupId, req.params.memberId);
+    res.status(200).json({ success: true, data: group });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
 
-module.exports = { postGroup, getGroup, respondGroup, postInviteMembers };
+module.exports = { postGroup, getGroup, respondGroup, postInviteMembers, deleteInvite };

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router";
 import { CheckCircle2, XCircle, Users, ChevronRight, Mail, RefreshCw } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
+import { Modal } from "../../components/Modal";
 import { EmptyState } from "../../components/EmptyState";
 import { supervisorAPI } from "../../services/api";
 
@@ -31,6 +33,8 @@ export function SupervisorRequests() {
   const [requests, setRequests] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [rejectConfirmId, setRejectConfirmId] = useState<string | null>(null);
+  const { searchQuery } = useOutletContext<{ searchQuery: string }>();
 
   const fetchRequests = async () => {
     try {
@@ -47,6 +51,10 @@ export function SupervisorRequests() {
   useEffect(() => { fetchRequests(); }, []);
 
   const filtered = filter === "all" ? requests : requests.filter((r) => r.status === filter);
+  const searchFiltered = filtered.filter((r) => 
+    r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (r.groupNo && r.groupNo.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   const handleAction = async (id: string, action: "accept" | "reject") => {
     try {
@@ -55,8 +63,9 @@ export function SupervisorRequests() {
       
       setRequests((prev) => prev.map((r) => (r._id === id ? { ...r, status: action === "accept" ? "approved" : "rejected" } : r)));
       setExpanded(null);
+      if (action === "reject") setRejectConfirmId(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : `Failed to ${action} request.`);
+      setError(err instanceof Error ? err.message : `Failed to ${action} request.`);
     }
   };
 
@@ -116,7 +125,7 @@ export function SupervisorRequests() {
       </div>
 
       {/* Request Cards */}
-      {filtered.length === 0 ? (
+      {searchFiltered.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No supervision requests"
@@ -124,7 +133,7 @@ export function SupervisorRequests() {
         />
       ) : (
         <div className="space-y-4">
-          {filtered.map((req) => {
+          {searchFiltered.map((req) => {
             const cfg = statusCfg[req.status];
             const isExpanded = expanded === req._id;
 
@@ -186,7 +195,7 @@ export function SupervisorRequests() {
                       {req.status === "pending" && (
                         <div className="flex gap-3">
                           <button
-                            onClick={() => handleAction(req._id, "reject")}
+                            onClick={() => setRejectConfirmId(req._id)}
                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm transition-all hover:opacity-80 bg-fyp-red/10 text-fyp-red border border-fyp-red/25"
                           >
                             <XCircle size={15} />
@@ -209,6 +218,20 @@ export function SupervisorRequests() {
           })}
         </div>
       )}
+
+      {/* Reject Confirmation Modal */}
+      <Modal
+        open={rejectConfirmId !== null}
+        onClose={() => setRejectConfirmId(null)}
+        title="Reject Supervision Request"
+        subtitle="Are you sure you want to reject this proposal?"
+        footer={<>
+          <button onClick={() => setRejectConfirmId(null)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
+          <button onClick={() => { if (rejectConfirmId) handleAction(rejectConfirmId, "reject"); }} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-red text-white font-semibold">Reject Request</button>
+        </>}
+      >
+        <p className="text-[13px] text-fyp-text-secondary mb-4">The student group will be notified and can resubmit their proposal to another supervisor.</p>
+      </Modal>
     </div>
   );
 }

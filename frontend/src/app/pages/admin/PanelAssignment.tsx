@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router";
 import { Users2, Plus, ChevronRight, CheckCircle2, Calendar, Trash2, RefreshCw, Pencil } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
@@ -53,6 +54,8 @@ export function AdminPanels() {
     defenseDate: string;
     room: string;
   } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const { searchQuery } = useOutletContext<{ searchQuery: string }>();
 
   const fetchPanels = async () => {
     try {
@@ -93,19 +96,19 @@ export function AdminPanels() {
       setNewPanel({ name: "", juryMemberIds: [], assignedGroupIds: [], defenseDate: "", room: "" });
       setShowForm(false);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to create panel.");
+      setError(err instanceof Error ? err.message : "Failed to create panel.");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this panel?")) return;
     try {
       await adminAPI.deletePanel(id);
       setPanels((prev) => prev.filter((p) => p._id !== id));
+      setDeleteConfirmId(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete panel.");
+      setError(err instanceof Error ? err.message : "Failed to delete panel.");
     }
   };
 
@@ -123,7 +126,7 @@ export function AdminPanels() {
       setPanels((prev) => prev.map((p) => (p._id === editPanel.id ? res.data : p)));
       setEditPanel(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to update panel.");
+      setError(err instanceof Error ? err.message : "Failed to update panel.");
     } finally {
       setSubmitting(false);
     }
@@ -151,6 +154,11 @@ export function AdminPanels() {
           editPanel.assignedGroupIds.includes(p._id)
       )
     : [];
+
+  const filteredPanels = panels.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (p.room && p.room.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   if (loading) {
     return (
@@ -199,7 +207,7 @@ export function AdminPanels() {
         />
       ) : (
         <div className="grid lg:grid-cols-2 gap-5">
-          {panels.map((panel) => (
+          {filteredPanels.map((panel) => (
             <div key={panel._id} className="rounded-2xl overflow-hidden bg-fyp-card border border-fyp-border">
               <div className="p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -216,7 +224,7 @@ export function AdminPanels() {
                     <button type="button" onClick={() => openEdit(panel)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-fyp-blue/10 transition-all" title="Edit panel">
                       <Pencil size={13} className="text-fyp-blue" />
                     </button>
-                    <button type="button" onClick={() => handleDelete(panel._id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-950/30 transition-all" title="Delete">
+                    <button type="button" onClick={() => setDeleteConfirmId(panel._id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-950/30 transition-all" title="Delete">
                       <Trash2 size={13} className="text-fyp-red" />
                     </button>
                   </div>
@@ -265,6 +273,20 @@ export function AdminPanels() {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteConfirmId !== null}
+        onClose={() => setDeleteConfirmId(null)}
+        title="Confirm Deletion"
+        subtitle="Are you sure you want to delete this panel? This action cannot be undone."
+        footer={<>
+          <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
+          <button onClick={() => { if (deleteConfirmId) handleDelete(deleteConfirmId); }} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-red text-white font-semibold">Delete Panel</button>
+        </>}
+      >
+        <p className="text-[13px] text-fyp-text-secondary mb-4">Deleting a panel will remove all jury assignments and free up the assigned groups.</p>
+      </Modal>
 
       {/* Create Panel Modal */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Create New Panel" maxWidth="max-w-xl"

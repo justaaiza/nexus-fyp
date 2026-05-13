@@ -50,6 +50,10 @@ class MongoSubmissionRepository extends ISubmissionRepository {
       .populate('submittedBy', 'name email rollNumber')
       .lean();
   }
+
+  async deleteById(id) {
+    return SubmissionModel.findByIdAndDelete(id).lean();
+  }
 }
 
 module.exports = MongoSubmissionRepository;

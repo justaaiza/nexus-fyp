@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Star, Send, CheckCircle2, Info, RefreshCw } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
+import { Modal } from "../../components/Modal";
 import { juryAPI } from "../../services/api";
 
 const rubric = [
@@ -51,6 +52,8 @@ export function JuryScores() {
   const [submitted, setSubmitted] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [tooltip, setTooltip] = useState<string | null>(null);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const fetchGroups = async () => {
     try {
@@ -112,16 +115,22 @@ export function JuryScores() {
     setScores(prev => ({ ...prev, [selectedGroupId]: { ...(prev[selectedGroupId] || {}), [key]: val } }));
   };
 
+  const triggerSubmit = () => {
+    setFormError("");
+    if (!selectedGroupId || !group) return;
+    const groupSubs = group.submissions;
+    if (!groupSubs || groupSubs.length === 0) {
+      setFormError("No submission found for this group to attach the score to.");
+      return;
+    }
+    setConfirmSubmit(true);
+  };
+
   const handleSubmit = async () => {
     if (!selectedGroupId || !group) return;
     const comment = feedbacks[selectedGroupId] || "";
-
-    // Find the first submission of this group to grade against
     const groupSubs = group.submissions;
-    if (!groupSubs || groupSubs.length === 0) {
-      alert("No submission found for this group to attach the score to.");
-      return;
-    }
+    if (!groupSubs || groupSubs.length === 0) return;
 
     const submissionId = groupSubs[0]._id;
     const grade = total;
@@ -130,8 +139,10 @@ export function JuryScores() {
       setSubmitting(true);
       await juryAPI.submitGrade(submissionId, { comment, grade, rubric: groupScores });
       setSubmitted(prev => new Set([...prev, selectedGroupId]));
+      setConfirmSubmit(false);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to submit score.");
+      setFormError(err instanceof Error ? err.message : "Failed to submit score.");
+      setConfirmSubmit(false);
     } finally {
       setSubmitting(false);
     }
@@ -287,14 +298,17 @@ export function JuryScores() {
             </div>
 
             {!isSubmitted && (
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="mt-4 flex items-center gap-2 px-5 py-3 rounded-xl hover:opacity-90 transition-all bg-fyp-purple text-white text-sm disabled:opacity-50"
-              >
-                <Send size={15} />
-                {submitting ? "Submitting..." : `Submit Final Score for ${group.groupNo || "Group"}`}
-              </button>
+              <>
+                {formError && <p className="mt-3 text-red-400 text-xs">{formError}</p>}
+                <button
+                  onClick={triggerSubmit}
+                  disabled={submitting}
+                  className="mt-4 flex items-center gap-2 px-5 py-3 rounded-xl hover:opacity-90 transition-all bg-fyp-purple text-white text-sm disabled:opacity-50"
+                >
+                  <Send size={15} />
+                  {submitting ? "Submitting..." : `Submit Final Score for ${group.groupNo || "Group"}`}
+                </button>
+              </>
             )}
           </div>
 
@@ -364,6 +378,22 @@ export function JuryScores() {
           </div>
         </div>
       )}
+
+      {/* Confirm Submit Modal */}
+      <Modal
+        open={confirmSubmit}
+        onClose={() => setConfirmSubmit(false)}
+        title="Confirm Evaluation"
+        subtitle={`Are you sure you want to submit the final score for ${group?.groupNo || "this group"}?`}
+        footer={<>
+          <button onClick={() => setConfirmSubmit(false)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
+          <button onClick={handleSubmit} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-purple text-white font-semibold disabled:opacity-50">
+            {submitting ? "Submitting..." : "Confirm Grade"}
+          </button>
+        </>}
+      >
+        <p className="text-[13px] text-fyp-text-secondary mb-4">You will not be able to change this score once it is submitted.</p>
+      </Modal>
     </div>
   );
 }

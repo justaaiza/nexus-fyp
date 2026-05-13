@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router";
 import { CheckCircle2, ChevronRight, FileText, Download, User, MessageSquare, RefreshCw } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCardSimple } from "../../components/StatCard";
+import { Modal } from "../../components/Modal";
 import { EmptyState } from "../../components/EmptyState";
 import { supervisorAPI } from "../../services/api";
 
@@ -22,6 +24,9 @@ export function SupervisorEvaluation() {
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [feedbackForm, setFeedbackForm] = useState({ grade: "", comment: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [confirmSubmitId, setConfirmSubmitId] = useState<string | null>(null);
+  const { searchQuery } = useOutletContext<{ searchQuery: string }>();
 
   const fetchSubmissions = async () => {
     try {
@@ -37,20 +42,39 @@ export function SupervisorEvaluation() {
 
   useEffect(() => { fetchSubmissions(); }, []);
 
-  const handleSubmitFeedback = async (subId: string) => {
-    if (!feedbackForm.grade || !feedbackForm.comment) return;
+  const triggerSubmit = (subId: string) => {
+    setFormError("");
+    if (!feedbackForm.grade) {
+      setFormError("Grade is required.");
+      return;
+    }
+    const gradeVal = Number(feedbackForm.grade);
+    if (gradeVal < 0 || gradeVal > 100) {
+      setFormError("Grade must be between 0 and 100.");
+      return;
+    }
+    if (!feedbackForm.comment.trim()) {
+      setFormError("Feedback comment is required.");
+      return;
+    }
+    setConfirmSubmitId(subId);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!confirmSubmitId) return;
     try {
       setSubmitting(true);
-      await supervisorAPI.submitFeedback(subId, {
+      await supervisorAPI.submitFeedback(confirmSubmitId, {
         grade: Number(feedbackForm.grade),
         comment: feedbackForm.comment,
       });
-      setSubmissions(prev => prev.map(s => s._id === subId ? { ...s, status: "graded", feedback: { grade: Number(feedbackForm.grade), comment: feedbackForm.comment } } : s));
+      setSubmissions(prev => prev.map(s => s._id === confirmSubmitId ? { ...s, status: "graded", feedback: { grade: Number(feedbackForm.grade), comment: feedbackForm.comment } } : s));
       setFeedbackForm({ grade: "", comment: "" });
       setSelectedSub(null);
-      alert("Feedback submitted successfully!");
+      setConfirmSubmitId(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to submit feedback.");
+      setError(err instanceof Error ? err.message : "Failed to submit feedback.");
+      setConfirmSubmitId(null);
     } finally {
       setSubmitting(false);
     }
@@ -67,7 +91,12 @@ export function SupervisorEvaluation() {
     );
   }
 
-  const pending = submissions.filter((s) => s.status !== "graded");
+  const filteredSubmissions = submissions.filter(s => 
+    (s.group?.groupNo && s.group.groupNo.toLowerCase().includes(searchQuery.toLowerCase())) || 
+    (s.milestone?.title && s.milestone.title.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const pending = filteredSubmissions.filter((s) => s.status !== "graded");
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -97,7 +126,7 @@ export function SupervisorEvaluation() {
         />
       ) : (
         <div className="space-y-4">
-          {submissions.map((sub) => {
+          {filteredSubmissions.map((sub) => {
             const isExpanded = selectedSub === sub._id;
 
             return (
@@ -164,11 +193,12 @@ export function SupervisorEvaluation() {
                               <input type="number" min="0" max="100" value={feedbackForm.grade} onChange={(e) => setFeedbackForm({ ...feedbackForm, grade: e.target.value })} className="w-full px-3 py-2 rounded-lg outline-none bg-fyp-card border border-fyp-border text-fyp-text text-[13px]" placeholder="e.g. 85" />
                             </div>
                             <div>
-                              <label className="text-[11px] text-fyp-text-secondary block mb-1.5 uppercase tracking-wide">Feedback Comment</label>
+                              <label className="text-[11px] text-fyp-text-secondary block mb-1.5 uppercase tracking-wide">Feedback Comment *</label>
                               <textarea value={feedbackForm.comment} onChange={(e) => setFeedbackForm({ ...feedbackForm, comment: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg outline-none resize-none bg-fyp-card border border-fyp-border text-fyp-text text-[13px]" placeholder="Detailed feedback..." />
                             </div>
-                            <button onClick={() => handleSubmitFeedback(sub._id)} disabled={!feedbackForm.grade || !feedbackForm.comment || submitting} className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all hover:opacity-90 bg-fyp-green text-white text-[13px] font-medium disabled:opacity-50">
-                              <CheckCircle2 size={15} /> {submitting ? "Submitting..." : "Submit Grade"}
+                            {formError && <p className="text-red-400 text-xs">{formError}</p>}
+                            <button onClick={() => triggerSubmit(sub._id)} className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all hover:opacity-90 bg-fyp-green text-white text-[13px] font-medium">
+                              <CheckCircle2 size={15} /> Submit Grade
                             </button>
                           </div>
                         </div>
@@ -181,6 +211,22 @@ export function SupervisorEvaluation() {
           })}
         </div>
       )}
+
+      {/* Confirm Submit Modal */}
+      <Modal
+        open={confirmSubmitId !== null}
+        onClose={() => setConfirmSubmitId(null)}
+        title="Confirm Evaluation"
+        subtitle="Are you sure you want to submit this grade?"
+        footer={<>
+          <button onClick={() => setConfirmSubmitId(null)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
+          <button onClick={handleSubmitFeedback} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-green text-white font-semibold disabled:opacity-50">
+            {submitting ? "Submitting..." : "Confirm Grade"}
+          </button>
+        </>}
+      >
+        <p className="text-[13px] text-fyp-text-secondary mb-4">Once submitted, the student group will see the grade and feedback.</p>
+      </Modal>
     </div>
   );
 }

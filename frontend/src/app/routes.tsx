@@ -13,6 +13,7 @@ import { AdminAnnouncements } from "./pages/admin/Announcements";
 import { JuryProjects } from "./pages/jury/Projects";
 import { JuryDeliverables } from "./pages/jury/Deliverables";
 import { JuryScores } from "./pages/jury/Scores";
+import { SettingsPage } from "./pages/Settings";
 import { SignupPage } from "./pages/Signup";
 import { useAuth } from "./context/AuthContext";
 
@@ -77,6 +78,8 @@ export const router = createBrowserRouter([
       { path: "jury/projects", Component: JuryProjects },
       { path: "jury/deliverables", Component: JuryDeliverables },
       { path: "jury/scores", Component: JuryScores },
+      // Global Settings
+      { path: "settings", Component: SettingsPage },
     ],
   },
   {

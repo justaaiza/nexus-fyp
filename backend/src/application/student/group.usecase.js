@@ -101,4 +101,33 @@ const inviteMembersToGroup = async (leaderId, groupId, memberIds) => {
   return groupRepository.findById(groupId);
 };
 
-module.exports = { createGroup, getMyGroup, respondToGroupRequest, inviteMembersToGroup };
+const unsendInvite = async (leaderId, groupId, memberId) => {
+  const group = await groupRepository.findById(groupId);
+  if (!group) throw Object.assign(new Error('Group not found.'), { statusCode: 404 });
+  if (group.leader._id.toString() !== leaderId.toString()) {
+    throw Object.assign(new Error('Only the group leader can unsend an invite.'), { statusCode: 403 });
+  }
+
+  const memberIndex = group.members.findIndex(m => m.user._id.toString() === memberId.toString());
+  if (memberIndex === -1) {
+    throw Object.assign(new Error('Member not found in this group.'), { statusCode: 404 });
+  }
+
+  if (group.members[memberIndex].status !== 'pending') {
+    throw Object.assign(new Error('Can only unsend pending invites.'), { statusCode: 400 });
+  }
+
+  group.members.splice(memberIndex, 1);
+  
+  if (group.members.length > 0) {
+    const allAccepted = group.members.every(m => m.status === 'accepted');
+    if (allAccepted) group.status = 'formed';
+  } else {
+    group.status = 'forming';
+  }
+  
+  await groupRepository.updateById(groupId, { members: group.members, status: group.status });
+  return groupRepository.findById(groupId);
+};
+
+module.exports = { createGroup, getMyGroup, respondToGroupRequest, inviteMembersToGroup, unsendInvite };

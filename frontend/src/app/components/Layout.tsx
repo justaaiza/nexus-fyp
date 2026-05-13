@@ -2,13 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { notificationAPI, studentAPI } from "../services/api";
+<<<<<<< Updated upstream
 import { Chatbot } from "./Chatbot";
+=======
+import { Modal } from "./Modal";
+>>>>>>> Stashed changes
 import {
   GraduationCap, LayoutDashboard, Upload, MessageSquare,
   UserCheck, CalendarPlus, ClipboardCheck, Users2,
   UserCog, Megaphone, FolderOpen, FileText, Star,
   ChevronDown, Bell, Search, LogOut, Menu, X,
-  BookOpen, Shield, Users, ChevronRight
+  BookOpen, Shield, Users, ChevronRight, Settings, Lock
 } from "lucide-react";
 import logo from "../assets/fast-logo.png";
 
@@ -84,6 +88,7 @@ export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [notifications, setNotifications] = useState<any[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -93,6 +98,7 @@ export function Layout() {
   const RoleIcon = config.icon;
 
   const [proposal, setProposal] = useState<any>(null);
+  const [lockedDialogMsg, setLockedDialogMsg] = useState<string | null>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -198,26 +204,70 @@ export function Layout() {
               const isDashboard = item.path === "/app/student/dashboard";
               const isDisabled = currentRole === "student" && !isDashboard && (!proposal || proposal.status !== "approved");
 
+              const lockReason = isDisabled
+                ? proposal
+                  ? proposal.status === "pending"
+                    ? "Your proposal is still pending admin approval. Milestones and Feedback will unlock once it is approved."
+                    : proposal.status === "rejected"
+                    ? "Your proposal was rejected. Please revise and resubmit it. These tabs will unlock after approval."
+                    : null
+                  : "You need an approved FYP proposal to access this section. Go to your Dashboard to submit one."
+                : null;
+
               return (
                 <button
                   key={item.path}
                   onClick={() => {
+<<<<<<< Updated upstream
                     navigate(item.path);
                     setSidebarOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left`}
+=======
+                    if (isDisabled && lockReason) {
+                      setLockedDialogMsg(lockReason);
+                      return;
+                    }
+                    navigate(item.path);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left group`}
+>>>>>>> Stashed changes
                   style={{
                     backgroundColor: isActive ? `${config.color}15` : "transparent",
-                    color: isActive ? "var(--fyp-text-primary)" : "var(--fyp-text-secondary)",
+                    color: isActive ? "var(--fyp-text-primary)" : isDisabled ? "var(--fyp-text-muted)" : "var(--fyp-text-secondary)",
                     borderLeft: isActive ? `2px solid ${config.color}` : "2px solid transparent",
                   }}
                 >
-                  <Icon size={16} color={isActive ? config.color : "var(--fyp-text-muted)"} />
-                  <span className={`text-[13px] ${isActive ? "font-medium" : ""}`}>{item.label}</span>
-                  {isActive && <ChevronRight size={12} style={{ marginLeft: "auto", color: config.color }} />}
+                  {isDisabled
+                    ? <Lock size={16} color="var(--fyp-text-muted)" />
+                    : <Icon size={16} color={isActive ? config.color : "var(--fyp-text-muted)"} />}
+                  <span className={`text-[13px] flex-1 ${isActive ? "font-medium" : ""} ${isDisabled ? "line-through opacity-60" : ""}`}>{item.label}</span>
+                  {isActive && <ChevronRight size={12} style={{ color: config.color }} />}
+                  {isDisabled && <Lock size={10} className="text-fyp-text-muted opacity-60" />}
                 </button>
               );
             })}
+          </div>
+          
+          <div className="mt-6 space-y-1">
+            <p className="text-[11px] text-fyp-text-muted uppercase tracking-wider mb-2.5">Preferences</p>
+            <button
+              onClick={() => {
+                navigate("/app/settings");
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left`}
+              style={{
+                backgroundColor: location.pathname === "/app/settings" ? `${config.color}15` : "transparent",
+                color: location.pathname === "/app/settings" ? "var(--fyp-text-primary)" : "var(--fyp-text-secondary)",
+                borderLeft: location.pathname === "/app/settings" ? `2px solid ${config.color}` : "2px solid transparent",
+              }}
+            >
+              <Settings size={16} color={location.pathname === "/app/settings" ? config.color : "var(--fyp-text-muted)"} />
+              <span className={`text-[13px] ${location.pathname === "/app/settings" ? "font-medium" : ""}`}>Settings</span>
+              {location.pathname === "/app/settings" && <ChevronRight size={12} style={{ marginLeft: "auto", color: config.color }} />}
+            </button>
           </div>
         </nav>
 
@@ -242,13 +292,15 @@ export function Layout() {
             <Menu size={20} />
           </button>
 
-          {/* <div className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 rounded-xl bg-fyp-card border border-fyp-border">
+          <div className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 rounded-xl bg-fyp-card border border-fyp-border">
             <Search size={14} className="text-fyp-text-muted" />
             <input
               placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-transparent outline-none flex-1 text-fyp-text text-[13px]"
             />
-          </div> */}
+          </div>
 
           <div className="ml-auto flex items-center gap-3">
             {/* Notifications */}
@@ -359,6 +411,16 @@ export function Layout() {
 
                   <div className="p-2 border-t border-fyp-border">
                     <button
+                      onClick={() => {
+                        navigate("/app/settings");
+                        setProfileOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:bg-fyp-elevated text-[13px] text-fyp-text-secondary hover:text-fyp-text font-medium mb-1"
+                    >
+                      <Settings size={14} />
+                      Settings
+                    </button>
+                    <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:bg-fyp-elevated text-[13px] text-fyp-red font-medium"
                     >
@@ -374,12 +436,35 @@ export function Layout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <Outlet context={{ searchQuery }} />
         </main>
 
         {/* Chatbot (Student only) */}
         {currentRole === "student" && <Chatbot />}
       </div>
+
+      {/* Locked Feature Dialog */}
+      <Modal
+        open={!!lockedDialogMsg}
+        onClose={() => setLockedDialogMsg(null)}
+        title="Feature Locked"
+        subtitle="This section is not available yet"
+        footer={
+          <button
+            onClick={() => setLockedDialogMsg(null)}
+            className="w-full py-2.5 rounded-xl text-sm bg-fyp-blue text-white font-semibold hover:opacity-90"
+          >
+            Got it
+          </button>
+        }
+      >
+        <div className="flex gap-3 items-start">
+          <div className="w-10 h-10 rounded-xl bg-fyp-amber/10 flex items-center justify-center flex-shrink-0">
+            <Lock size={18} className="text-fyp-amber" />
+          </div>
+          <p className="text-[14px] text-fyp-text-secondary leading-relaxed">{lockedDialogMsg}</p>
+        </div>
+      </Modal>
     </div>
   );
 }

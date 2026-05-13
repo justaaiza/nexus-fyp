@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 
 interface ModalProps {
   open: boolean;
@@ -12,6 +13,16 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, subtitle, children, footer, maxWidth = "max-w-md" }: ModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (

@@ -16,7 +16,7 @@ const {
   updateStudentProfile,
 } = require('../controllers/StudentController');
 
-const { postGroup, getGroup, respondGroup, postInviteMembers } = require('../controllers/GroupController');
+const { postGroup, getGroup, respondGroup, postInviteMembers, deleteInvite } = require('../controllers/GroupController');
 
 const verifyToken = require('../middlewares/auth.middleware');
 const authorizeRoles = require('../middlewares/role.middleware');
@@ -68,6 +68,17 @@ router.post(
 
 // PATCH /api/student/groups/:groupId/respond
 router.patch('/groups/:groupId/respond', respondGroup);
+
+// DELETE /api/student/groups/:groupId/invite/:memberId
+router.delete(
+  '/groups/:groupId/invite/:memberId',
+  [
+    param('groupId').isMongoId().withMessage('Invalid group ID.'),
+    param('memberId').isMongoId().withMessage('Invalid member ID.'),
+  ],
+  checkValidationResult,
+  deleteInvite
+);
 
 // ── Milestones ────────────────────────────────────────────────────────────────
 // GET /api/student/milestones

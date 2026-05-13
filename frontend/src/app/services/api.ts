@@ -89,14 +89,46 @@ export const studentAPI = {
   createGroup: (body: { memberIds: string[] }) => request('/student/groups', { method: 'POST', body: JSON.stringify(body) }),
   inviteGroupMembers: (groupId: string, body: { memberIds: string[] }) =>
     request(`/student/groups/${groupId}/invite`, { method: 'POST', body: JSON.stringify(body) }),
+  unsendInvite: (groupId: string, memberId: string) =>
+    request(`/student/groups/${groupId}/invite/${memberId}`, { method: 'DELETE' }),
   respondGroup: (groupId: string, accept: boolean) => request(`/student/groups/${groupId}/respond`, { method: 'PATCH', body: JSON.stringify({ accept }) }),
 
   getMilestones: () => request('/student/milestones'),
 
-  submitDeliverable: (milestoneId: string, file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    return request(`/student/milestones/${milestoneId}/submit`, { method: 'POST', body: form });
+  submitDeliverable: (milestoneId: string, file: File, onProgress?: (progress: number) => void) => {
+    return new Promise((resolve, reject) => {
+      const token = getToken();
+      const form = new FormData();
+      form.append('file', file);
+      
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BASE_URL}/student/milestones/${milestoneId}/submit`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      
+      if (onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            onProgress(Math.round((event.loaded * 100) / event.total));
+          }
+        };
+      }
+      
+      xhr.onload = () => {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(res);
+          } else {
+            reject(new Error(res.message || 'Upload failed.'));
+          }
+        } catch (e) {
+          reject(new Error('Invalid server response.'));
+        }
+      };
+      
+      xhr.onerror = () => reject(new Error('Network error during upload.'));
+      xhr.send(form);
+    });
   },
 
   getMySubmissions: () => request('/student/submissions/me'),

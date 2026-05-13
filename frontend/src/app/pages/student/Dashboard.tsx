@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, Clock, AlertCircle, Upload, ChevronRight, Users, Calendar, TrendingUp, ExternalLink, RefreshCw, X, Search, Check, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, Upload, ChevronRight, Users, Calendar, TrendingUp, ExternalLink, RefreshCw, X, Search, Check, XCircle, ArrowUp } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCard } from "../../components/StatCard";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card } from "../../components/Card";
 import { Modal } from "../../components/Modal";
 import { studentAPI, getStoredUser } from "../../services/api";
+import { useSettings } from "../../context/SettingsContext";
 
 type ProposalStatus = "pending" | "approved" | "rejected";
 
@@ -48,8 +49,20 @@ export function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const { showToast } = useSettings();
   
-  const [form, setForm] = useState({ title: "", description: "", domain: "", groupNo: "", supervisorPreference: "" });
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('proposal_draft');
+      return saved ? JSON.parse(saved) : { title: "", description: "", domain: "", groupNo: "", supervisorPreference: "" };
+    } catch {
+      return { title: "", description: "", domain: "", groupNo: "", supervisorPreference: "" };
+    }
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('proposal_draft', JSON.stringify(form));
+  }, [form]);
   const [options, setOptions] = useState<{ availableStudents: any[], supervisors: any[] }>({ availableStudents: [], supervisors: [] });
   
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
@@ -78,6 +91,8 @@ export function StudentDashboard() {
   const [memberModalMode, setMemberModalMode] = useState<"create" | "invite">("create");
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [modalError, setModalError] = useState("");
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const user = getStoredUser();
 
@@ -93,6 +108,7 @@ export function StudentDashboard() {
         myGroup = groupRes.data;
         setGroup(myGroup);
       } catch (err: any) {
+        setGroup(null);
         if (err.message !== "No group found.") {
           console.error("Group fetch error:", err);
         }
@@ -118,9 +134,24 @@ export function StudentDashboard() {
 
   useEffect(() => { fetchDashboardData(); }, []);
 
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+    const handleScroll = () => {
+      setShowScrollTop(mainEl.scrollTop > 300);
+    };
+    mainEl.addEventListener('scroll', handleScroll);
+    return () => mainEl.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSaveGroupMembers = async () => {
+    setModalError("");
     if (selectedGroupMembers.length === 0) {
-      alert("Please select at least 1 team member.");
+      setModalError("Please select at least 1 team member.");
       return;
     }
     try {
@@ -134,8 +165,9 @@ export function StudentDashboard() {
       }
       setShowMemberModal(false);
       setSelectedGroupMembers([]);
+      showToast(memberModalMode === "invite" ? "Invites sent successfully!" : "Group created successfully!");
     } catch (err: any) {
-      alert(err.message || (memberModalMode === "invite" ? "Failed to send invites." : "Failed to create group."));
+      setModalError(err.message || (memberModalMode === "invite" ? "Failed to send invites." : "Failed to create group."));
     } finally {
       setGroupSubmitting(false);
     }
@@ -147,8 +179,23 @@ export function StudentDashboard() {
       setGroupSubmitting(true);
       await studentAPI.respondGroup(group._id, accept);
       await fetchDashboardData();
+      showToast(`Group request ${accept ? "accepted" : "rejected"}.`);
     } catch (err: any) {
-      alert(err.message || "Failed to respond.");
+      setError(err.message || "Failed to respond.");
+    } finally {
+      setGroupSubmitting(false);
+    }
+  };
+
+  const handleUnsendInvite = async (memberId: string) => {
+    if (!group) return;
+    try {
+      setGroupSubmitting(true);
+      const res = await studentAPI.unsendInvite(group._id, memberId) as { success: boolean; data: Group };
+      setGroup(res.data);
+      showToast("Invite unsent successfully.");
+    } catch (err: any) {
+      setError(err.message || "Failed to unsend invite.");
     } finally {
       setGroupSubmitting(false);
     }
@@ -156,9 +203,10 @@ export function StudentDashboard() {
 
   const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     if (!form.title || !form.description) return;
     if (proposal?.status === "rejected" && !form.supervisorPreference) {
-      alert("Select a supervisor to send your proposal to (you can choose a different one than before).");
+      setError("Select a supervisor to send your proposal to (you can choose a different one than before).");
       return;
     }
     try {
@@ -171,8 +219,10 @@ export function StudentDashboard() {
       }
       setProposal(res.data);
       setShowForm(false);
+      sessionStorage.removeItem('proposal_draft');
+      showToast(proposal ? "Proposal updated successfully!" : "Proposal submitted successfully!");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to submit proposal.");
+      setError(err instanceof Error ? err.message : "Failed to submit proposal.");
     } finally {
       setSubmitting(false);
     }
@@ -216,6 +266,9 @@ export function StudentDashboard() {
   if ((!group || group.status === 'forming') && !showForm) {
     const isLeader = group?.leader._id === user?._id;
     const myMemberRecord = group?.members.find(m => m.user._id === user?._id);
+    const acceptedMembersCount = group ? group.members.filter(m => m.status === 'accepted').length + 1 : 1;
+    const hasPendingInvites = group ? group.members.some(m => m.status === 'pending') : false;
+    const totalMembersIncludingLeader = group ? group.members.length + 1 : 1;
 
     return (
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -273,10 +326,22 @@ export function StudentDashboard() {
                       <p className="text-xs text-fyp-text-muted">{m.user.email}</p>
                     </div>
                   </div>
-                  <StatusBadge 
-                    label={m.status.charAt(0).toUpperCase() + m.status.slice(1)} 
-                    color={m.status === 'accepted' ? '#10b981' : m.status === 'rejected' ? '#ef4444' : '#f59e0b'} 
-                  />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge 
+                      label={m.status.charAt(0).toUpperCase() + m.status.slice(1)} 
+                      color={m.status === 'accepted' ? '#10b981' : m.status === 'rejected' ? '#ef4444' : '#f59e0b'} 
+                    />
+                    {isLeader && m.status === 'pending' && (
+                      <button
+                        disabled={groupSubmitting}
+                        onClick={() => handleUnsendInvite(m.user._id)}
+                        className="text-xs text-fyp-text-muted hover:text-fyp-red transition-colors disabled:opacity-50"
+                        title={groupSubmitting ? "Processing..." : "Unsend Invite"}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -302,15 +367,21 @@ export function StudentDashboard() {
             
             {isLeader && (
               <div className="space-y-3 mt-4 pt-4 border-t border-fyp-border">
-                {group.members.length === 0 ? (
-                  // Only leader — no one invited yet, show invite only
+                {hasPendingInvites ? (
                   <>
                     <p className="text-sm text-fyp-text-secondary text-center">
-                      Waiting for all members to accept the group request...
+                      Waiting for all invited members to accept or reject the group request before you can submit a proposal.
+                    </p>
+                  </>
+                ) : acceptedMembersCount < 2 ? (
+                  <>
+                    <p className="text-sm text-fyp-text-secondary text-center">
+                      You need at least 1 more accepted member to submit a proposal.
                     </p>
                     <button
                       type="button"
                       disabled={groupSubmitting}
+                      title={groupSubmitting ? "Processing..." : "Invite another student"}
                       onClick={() => {
                         setMemberModalMode("invite");
                         setSearchQuery("");
@@ -319,14 +390,13 @@ export function StudentDashboard() {
                       }}
                       className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text font-semibold border border-fyp-border hover:bg-fyp-border/40 disabled:opacity-50 transition-all"
                     >
-                      <Users size={15} /> Invite another student (up to 2 more)
+                      <Users size={15} /> Invite another student
                     </button>
                   </>
                 ) : (
-                  // 2+ people total — show submit proposal; show invite if < 3 people total
                   <>
                     <p className="text-sm text-fyp-text-secondary text-center">
-                      Your group has {group.members.length + 1} members. You can submit a proposal now.
+                      Your group has {acceptedMembersCount} accepted members. You can submit a proposal now.
                     </p>
                     {!proposal && (
                       <button
@@ -343,10 +413,11 @@ export function StudentDashboard() {
                         <p className="text-xs text-fyp-text-muted mt-0.5 capitalize">Status: {proposal.status}</p>
                       </div>
                     )}
-                    {group.members.length < 2 && (
+                    {totalMembersIncludingLeader < 3 && (
                       <button
                         type="button"
                         disabled={groupSubmitting}
+                        title={groupSubmitting ? "Processing..." : "Invite a 3rd member"}
                         onClick={() => {
                           setMemberModalMode("invite");
                           setSearchQuery("");
@@ -355,7 +426,7 @@ export function StudentDashboard() {
                         }}
                         className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text font-semibold border border-fyp-border hover:bg-fyp-border/40 disabled:opacity-50 transition-all"
                       >
-                        <Users size={15} /> Invite another student (1 more slot available)
+                        <Users size={15} /> Invite a 3rd member (optional)
                       </button>
                     )}
                   </>
@@ -379,6 +450,7 @@ export function StudentDashboard() {
             <Search size={14} className="text-fyp-text-muted" />
             <input placeholder="Search by name, email or roll number..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent outline-none flex-1 text-fyp-text text-[13px]" />
           </div>
+          {modalError && <div className="mb-4 p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-400 text-xs">{modalError}</div>}
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {filteredStudents.map((s: any) => (
               <div key={s._id} className="flex items-center justify-between p-3 rounded-xl bg-fyp-elevated border border-fyp-border">
@@ -392,7 +464,7 @@ export function StudentDashboard() {
                   } else if (selectedGroupMembers.length < maxSelectableMembers) {
                     setSelectedGroupMembers([...selectedGroupMembers, s._id]);
                   } else {
-                    alert(`You can select up to ${maxSelectableMembers} student${maxSelectableMembers === 1 ? "" : "s"} here.`);
+                    setModalError(`You can select up to ${maxSelectableMembers} student${maxSelectableMembers === 1 ? "" : "s"} here.`);
                   }
                 }} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${selectedGroupMembers.includes(s._id) ? 'bg-fyp-red text-white' : 'bg-fyp-blue text-white'}`}>
                   {selectedGroupMembers.includes(s._id) ? 'Remove' : 'Select'}
@@ -462,6 +534,7 @@ export function StudentDashboard() {
             <Search size={14} className="text-fyp-text-muted" />
             <input placeholder="Search by name, email or roll number..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent outline-none flex-1 text-fyp-text text-[13px]" />
           </div>
+          {modalError && <div className="mb-4 p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-400 text-xs">{modalError}</div>}
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {filteredStudents.map((s: any) => (
               <div key={s._id} className="flex items-center justify-between p-3 rounded-xl bg-fyp-elevated border border-fyp-border">
@@ -475,7 +548,7 @@ export function StudentDashboard() {
                   } else if (selectedGroupMembers.length < 1) {
                     setSelectedGroupMembers([...selectedGroupMembers, s._id]);
                   } else {
-                    alert("You can only add 1 more member.");
+                    setModalError("You can only add 1 more member.");
                   }
                 }} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${selectedGroupMembers.includes(s._id) ? 'bg-fyp-red text-white' : 'bg-fyp-blue text-white'}`}>
                   {selectedGroupMembers.includes(s._id) ? 'Remove' : 'Select'}
@@ -503,6 +576,11 @@ export function StudentDashboard() {
           title="Proposal Dashboard"
           subtitle={isRejectedResubmit ? "Resubmit — choose a supervisor and update your proposal" : "Step 2: FYP Proposal"}
         />
+        {error && (
+          <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-400 text-sm flex gap-2 items-center">
+            {error}
+          </div>
+        )}
         <div className="p-8 rounded-2xl bg-fyp-card border border-fyp-border max-w-3xl mx-auto w-full shadow-sm">
           <h3 className={`text-[18px] font-semibold text-fyp-text ${isRejectedResubmit ? "mb-2" : "mb-6"}`}>
             {isRejectedResubmit ? "Resubmit to another supervisor" : proposal ? "Edit FYP Proposal" : "Submit FYP Proposal"}
@@ -713,6 +791,17 @@ export function StudentDashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 p-3 rounded-full bg-fyp-blue text-white shadow-lg hover:scale-110 transition-transform z-50 flex items-center justify-center"
+          title="Scroll to top"
+        >
+          <ArrowUp size={20} />
+        </button>
+      )}
     </div>
   );
 }

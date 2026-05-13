@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { Eye, EyeOff, BookOpen, Shield, Users, ChevronRight, RefreshCw } from "lucide-react";
 import fastLogo from "../assets/fast-logo.png";
@@ -17,15 +17,22 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      const targetPath = roleFirstPaths[user.role] || "/app/student/dashboard";
+      navigate(targetPath, { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     try {
-      const user = await login(email, password);
-      const targetPath = roleFirstPaths[user.role] || "/app/student/dashboard";
-      navigate(targetPath);
+      const loggedInUser = await login(email, password);
+      const targetPath = roleFirstPaths[loggedInUser.role] || "/app/student/dashboard";
+      navigate(targetPath, { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed. Please check your credentials.");
     }
@@ -114,11 +121,14 @@ export function LoginPage() {
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-[13px] text-fyp-text-secondary block mb-1.5">
+              <label htmlFor="email" className="text-[13px] text-fyp-text-secondary block mb-1.5">
                 Email address
               </label>
               <input
                 type="email"
+                id="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@nu.edu.pk"
@@ -126,12 +136,15 @@ export function LoginPage() {
               />
             </div>
             <div>
-              <label className="text-[13px] text-fyp-text-secondary block mb-1.5">
+              <label htmlFor="password" className="text-[13px] text-fyp-text-secondary block mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"

@@ -4,6 +4,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { Modal } from "../../components/Modal";
 import { EmptyState } from "../../components/EmptyState";
 import { studentAPI } from "../../services/api";
+import { useSettings } from "../../context/SettingsContext";
 
 type MilestoneStatus = "submitted" | "graded" | "pending" | "locked";
 
@@ -40,7 +41,10 @@ export function StudentMilestones() {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showToast } = useSettings();
 
   const fetchMilestones = async () => {
     try {
@@ -80,25 +84,30 @@ export function StudentMilestones() {
     if (!selectedFile || !uploadModal) return;
     try {
       setUploading(true);
-      const res = await studentAPI.submitDeliverable(uploadModal, selectedFile) as { data: any };
+      setUploadProgress(0);
+      const res = await studentAPI.submitDeliverable(uploadModal, selectedFile, (progress) => {
+        setUploadProgress(progress);
+      }) as { data: any };
       setSubmissions((prev) => [...prev, res.data]);
       setUploadModal(null);
       setSelectedFile(null);
-      alert("Deliverable submitted successfully!");
+      showToast("Deliverable uploaded successfully!");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Upload failed.");
+      setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const handleDeleteSubmission = async (submissionId: string) => {
-    if (!confirm("Are you sure you want to remove this submission? You will need to upload a new one before the deadline.")) return;
     try {
       await studentAPI.deleteSubmission(submissionId);
       setSubmissions((prev) => prev.filter(s => s._id !== submissionId));
+      setDeleteConfirmId(null);
+      showToast("Submission removed successfully.");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete submission.");
+      setError(err instanceof Error ? err.message : "Failed to delete submission.");
     }
   };
 
@@ -192,10 +201,15 @@ export function StudentMilestones() {
                     </div>
                   </div>
 
-                  {!isLocked && !submission && (
+                  {!submission && (
                     <div className="flex-shrink-0">
-                      <button onClick={() => { setUploadModal(m._id); setSelectedFile(null); }} className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:opacity-90 bg-fyp-blue text-white text-[13px]">
-                        <Upload size={14} /> Upload
+                      <button 
+                        disabled={isLocked}
+                        title={isLocked ? "The deadline has passed for this milestone." : "Upload your deliverable"}
+                        onClick={() => { setUploadModal(m._id); setSelectedFile(null); }} 
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-[13px] ${isLocked ? 'bg-fyp-elevated text-fyp-text-muted cursor-not-allowed border border-fyp-border' : 'hover:opacity-90 bg-fyp-blue text-white'}`}
+                      >
+                        <Upload size={14} /> {isLocked ? "Locked" : "Upload"}
                       </button>
                     </div>
                   )}
@@ -206,7 +220,7 @@ export function StudentMilestones() {
                         <FileText size={14} /> View File
                       </a>
                       {submission.status !== 'graded' && !isLocked && (
-                        <button onClick={() => handleDeleteSubmission(submission._id)} className="p-2 rounded-xl transition-all hover:bg-red-950/30 text-fyp-red" title="Remove submission">
+                        <button onClick={() => setDeleteConfirmId(submission._id)} className="p-2 rounded-xl transition-all hover:bg-red-950/30 text-fyp-red" title="Remove submission">
                           <Trash2 size={16} />
                         </button>
                       )}
@@ -219,11 +233,14 @@ export function StudentMilestones() {
         </div>
       )}
 
-      <Modal open={!!uploadModal && !!activeMilestone} onClose={() => { setUploadModal(null); setSelectedFile(null); }} title="Upload Deliverable" subtitle={activeMilestone?.title}
+      <Modal open={!!uploadModal && !!activeMilestone} onClose={() => { if(!uploading) { setUploadModal(null); setSelectedFile(null); setUploadProgress(0); } }} title="Upload Deliverable" subtitle={activeMilestone?.title}
         footer={<>
-          <button onClick={() => { setUploadModal(null); setSelectedFile(null); }} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
-          <button onClick={handleUpload} disabled={!selectedFile || uploading} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 transition-all bg-fyp-blue text-white disabled:opacity-50">
-            {uploading ? "Uploading..." : "Submit Deliverable"}
+          <button disabled={uploading} onClick={() => { setUploadModal(null); setSelectedFile(null); setUploadProgress(0); }} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border disabled:opacity-50">Cancel</button>
+          <button onClick={handleUpload} disabled={!selectedFile || uploading} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 transition-all bg-fyp-blue text-white disabled:opacity-50 relative overflow-hidden">
+            {uploading && (
+              <div className="absolute inset-0 bg-white/20" style={{ width: `${uploadProgress}%`, transition: 'width 0.3s ease' }} />
+            )}
+            <span className="relative z-10">{uploading ? `Uploading... ${uploadProgress}%` : "Submit Deliverable"}</span>
           </button>
         </>}
       >
@@ -233,7 +250,7 @@ export function StudentMilestones() {
               style={{ borderColor: dragOver ? "#3b7fe8" : "var(--fyp-border)", backgroundColor: dragOver ? "rgba(59,127,232,0.05)" : "var(--fyp-bg-elevated)" }}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}
             >
-              <input ref={fileInputRef} type="file" accept=".pdf,.zip,.mp4" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); }} />
+              <input ref={fileInputRef} type="file" accept={activeMilestone.acceptedTypes && activeMilestone.acceptedTypes.length > 0 ? activeMilestone.acceptedTypes.map((t: string) => `.${t}`).join(',') : ".pdf"} className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); }} />
               <CloudUpload size={36} color={dragOver ? "#3b7fe8" : "var(--fyp-text-muted)"} />
               {selectedFile ? (
                 <>
@@ -244,6 +261,9 @@ export function StudentMilestones() {
                 <>
                   <p className="text-sm font-medium text-fyp-text mt-3">Drop your files here</p>
                   <p className="text-xs text-fyp-text-muted mt-1">or click to browse — Max 50MB</p>
+                  <p className="text-xs text-fyp-text-muted mt-2 text-center bg-fyp-elevated px-3 py-1 rounded-lg border border-fyp-border">
+                    Accepted formats: {activeMilestone.acceptedTypes && activeMilestone.acceptedTypes.length > 0 ? activeMilestone.acceptedTypes.map((t: string) => '.' + t).join(', ') : '.pdf'}
+                  </p>
                 </>
               )}
             </div>
@@ -253,6 +273,20 @@ export function StudentMilestones() {
             </div>
           </>
         )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteConfirmId !== null}
+        onClose={() => setDeleteConfirmId(null)}
+        title="Confirm Deletion"
+        subtitle="Are you sure you want to remove this submission?"
+        footer={<>
+          <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2.5 rounded-xl text-sm bg-fyp-elevated text-fyp-text-secondary border border-fyp-border">Cancel</button>
+          <button onClick={() => { if (deleteConfirmId) handleDeleteSubmission(deleteConfirmId); }} className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90 bg-fyp-red text-white font-semibold">Remove File</button>
+        </>}
+      >
+        <p className="text-[13px] text-fyp-text-secondary mb-4">You will need to upload a new deliverable before the deadline.</p>
       </Modal>
     </div>
   );
