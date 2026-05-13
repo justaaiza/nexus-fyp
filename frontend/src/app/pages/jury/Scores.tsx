@@ -15,7 +15,7 @@ const rubric = [
 
 const maxTotal = rubric.reduce((sum, r) => sum + r.max, 0);
 
-type Submission = { _id: string; fileName: string; fileType: string };
+type Submission = { _id: string; fileName: string; fileType: string; myFeedback?: any };
 
 type Group = {
   _id: string;
@@ -69,6 +69,25 @@ export function JuryScores() {
         }
       }
       setGroups(allGroups);
+
+      // Pre-fill previously submitted scores/feedback into state
+      const initialScores: Record<string, Record<string, number>> = {};
+      const initialFeedbacks: Record<string, string> = {};
+      const initialSubmitted = new Set<string>();
+
+      allGroups.forEach(g => {
+        const sub = g.submissions?.[0]; // matching logic from handleSubmit
+        if (sub && sub.myFeedback) {
+          initialSubmitted.add(g._id);
+          initialFeedbacks[g._id] = sub.myFeedback.comment || "";
+          initialScores[g._id] = sub.myFeedback.rubric || {};
+        }
+      });
+
+      setScores(initialScores);
+      setFeedbacks(initialFeedbacks);
+      setSubmitted(initialSubmitted);
+
       if (allGroups.length > 0 && !selectedGroupId) {
         setSelectedGroupId(allGroups[0]._id);
       }
@@ -109,7 +128,7 @@ export function JuryScores() {
 
     try {
       setSubmitting(true);
-      await juryAPI.submitGrade(submissionId, { comment, grade });
+      await juryAPI.submitGrade(submissionId, { comment, grade, rubric: groupScores });
       setSubmitted(prev => new Set([...prev, selectedGroupId]));
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to submit score.");

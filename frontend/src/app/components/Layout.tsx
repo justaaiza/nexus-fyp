@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { notificationAPI, studentAPI } from "../services/api";
+import { Chatbot } from "./Chatbot";
 import {
   GraduationCap, LayoutDashboard, Upload, MessageSquare,
   UserCheck, CalendarPlus, ClipboardCheck, Users2,
@@ -201,12 +202,10 @@ export function Layout() {
                 <button
                   key={item.path}
                   onClick={() => {
-                    if (isDisabled) return;
                     navigate(item.path);
                     setSidebarOpen(false);
                   }}
-                  disabled={isDisabled}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left`}
                   style={{
                     backgroundColor: isActive ? `${config.color}15` : "transparent",
                     color: isActive ? "var(--fyp-text-primary)" : "var(--fyp-text-secondary)",
@@ -377,6 +376,9 @@ export function Layout() {
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
+
+        {/* Chatbot (Student only) */}
+        {currentRole === "student" && <Chatbot />}
       </div>
     </div>
   );

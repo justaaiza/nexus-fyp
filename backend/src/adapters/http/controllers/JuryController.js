@@ -24,7 +24,7 @@ class JuryController {
 
   async getMyPanels(req, res, next) {
     try {
-      const panels = await getMyPanels(panelRepo, req.user._id);
+      const panels = await getMyPanels(panelRepo, submissionRepo, feedbackRepo, req.user._id);
       res.status(200).json({ success: true, data: panels });
     } catch (error) {
       next(error);
@@ -72,6 +72,7 @@ class JuryController {
         juryUserId: req.user._id,
         comment: req.body.comment,
         grade: req.body.grade,
+        rubric: req.body.rubric,
       });
       res.status(201).json({ success: true, data: feedback });
     } catch (error) {

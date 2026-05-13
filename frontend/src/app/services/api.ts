@@ -42,6 +42,11 @@ async function request<T = unknown>(
 
   const json = await res.json();
   if (!res.ok) {
+    if (res.status === 401 && json.redirect === '/login') {
+      removeToken();
+      removeStoredUser();
+      window.location.href = '/login';
+    }
     throw new Error(json.message || 'Something went wrong.');
   }
   return json;

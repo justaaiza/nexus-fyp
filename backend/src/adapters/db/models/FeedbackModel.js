@@ -22,6 +22,10 @@ const feedbackSchema = new mongoose.Schema(
       max: 100,
       default: null,
     },
+    rubric: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );

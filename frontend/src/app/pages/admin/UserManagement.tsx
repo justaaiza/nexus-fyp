@@ -174,7 +174,7 @@ export function AdminUsers() {
             <div className="grid grid-cols-12 px-5 py-3 border-b border-fyp-border bg-fyp-sidebar">
               {["User", "Role", "Dept", "Reg #", "Registered", "Status", "Actions"].map((h, i) => (
                 <div key={h} className="text-[11px] text-fyp-text-muted uppercase tracking-wider" style={{
-                  gridColumn: i === 0 ? "span 3" : i === 6 ? "span 2" : "span 1",
+                  gridColumn: i === 0 ? "span 3" : (i === 3 || i === 4 || i === 6) ? "span 2" : "span 1",
                 }}>
                   {h}
                 </div>

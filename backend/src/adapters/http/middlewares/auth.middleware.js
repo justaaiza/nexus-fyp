@@ -22,7 +22,11 @@ const verifyToken = async (req, res, next) => {
 
     const user = await userRepo.findById(decoded.id);
     if (!user) {
-      throw new AppError('User belonging to this token no longer exists.', 401);
+      return res.status(401).json({
+        success: false,
+        message: 'User belonging to this token no longer exists.',
+        redirect: '/login'
+      });
     }
 
     req.user = user;
