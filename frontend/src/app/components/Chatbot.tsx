@@ -1,6 +1,33 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Groq } from "groq-sdk";
+
+/** Tailwind-only styling for markdown inside assistant bubbles (no typography plugin). */
+const assistantMarkdownClass =
+  "text-sm leading-relaxed [&_*:first-child]:mt-0 [&_*:last-child]:mb-0 " +
+  "[&_p]:my-2 [&_p:first-child]:mt-0 [&_ul]:my-2 [&_ol]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_li]:pl-0.5 " +
+  "[&_h1]:text-base [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 " +
+  "[&_strong]:font-semibold [&_em]:italic [&_hr]:my-3 [&_hr]:border-slate-200 " +
+  "[&_a]:text-[#3b7fe8] [&_a]:underline [&_a]:underline-offset-2 [&_a]:break-all hover:[&_a]:opacity-90 " +
+  "[&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 " +
+  "[&_code]:rounded [&_code]:bg-slate-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.8rem] [&_code]:break-words " +
+  "[&_pre]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-slate-100 [&_pre]:p-2 [&_pre]:text-[0.8rem]";
+
+/** Remove model chain-of-thought blocks (repeat until stable for nested fragments). */
+function stripReasoningBlocks(text: string): string {
+  let out = text;
+  let prev = "";
+  while (out !== prev) {
+    prev = out;
+    out = out
+      .replace(/<think>[\s\S]*?<\/think>/gi, "")
+      .replace(/<redacted_thinking>[\s\S]*?<\/redacted_thinking>/gi, "")
+      .replace(/<redacted_reasoning>[\s\S]*?<\/redacted_reasoning>/gi, "");
+  }
+  return out.trim();
+}
 
 // Initialize Groq specifically for browser usage (requires dangerouslyAllowBrowser if used in frontend)
 // Better to have backend API but using direct for prototype as requested.
@@ -57,8 +84,7 @@ export function Chatbot() {
       });
       
       const rawResponse = chatCompletion.choices?.[0]?.message?.content || "Sorry, I could not process that.";
-      // Remove <think>...</think> reasoning blocks from the response
-      const responseContent = rawResponse.replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
+      const responseContent = stripReasoningBlocks(rawResponse);
       
       const assistantMessage: Message = { id: Date.now().toString() + "-ai", role: "assistant", content: responseContent };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -103,7 +129,13 @@ export function Chatbot() {
                   : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm"
               }`}
             >
-              {m.content}
+              {m.role === "assistant" ? (
+                <div className={assistantMarkdownClass}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{stripReasoningBlocks(m.content)}</ReactMarkdown>
+                </div>
+              ) : (
+                <span className="whitespace-pre-wrap break-words">{m.content}</span>
+              )}
             </div>
           </div>
         ))}
